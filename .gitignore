@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.idea/
+
+# nested un-edited duplicate of the project (kept on disk, not tracked)
+AoI-V2X-backup-main/
+
+data/
+
+**/model/**/*.mat
+**/model/**/*.png
+
+**/Classes/tmp/ddpg/*
+!**/Classes/tmp/ddpg/*.txt

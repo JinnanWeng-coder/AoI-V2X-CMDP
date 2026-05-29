@@ -1,0 +1,1 @@
+Current changes compared to the original source code (AoI-V2X-Original): 1. Modified the representation of the global reward in `algo1` (changed from the value at the final step of each episode to the average value across the entire episode).  2. Add the episode level global reward output for `algo2`  3. Fixed the random seed. 4. Add Tensorboard 

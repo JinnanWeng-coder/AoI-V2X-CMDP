@@ -1,0 +1,44 @@
+import numpy as np
+
+class ReplayBuffer():
+    def __init__(self, max_size, input_shape, n_actions, n_agents):
+        self.mem_size = max_size
+        self.mem_cntr = 0
+        self.state_memory = np.zeros((self.mem_size, input_shape * n_agents), dtype=np.float16)
+        self.action_memory = np.zeros((self.mem_size, n_actions * n_agents), dtype=np.float16)
+        self.reward_global_memory = np.zeros(self.mem_size)
+        self.reward_task1 =  np.zeros((self.mem_size, n_agents), dtype=np.float16)
+        self.reward_task2 =  np.zeros((self.mem_size, n_agents), dtype=np.float16)
+        # [RQ1-CMDP] per-platoon constraint cost (AoI-violation indicator).
+        self.reward_cost = np.zeros((self.mem_size, n_agents), dtype=np.float16)
+        self.new_state_memory = np.zeros((self.mem_size, input_shape * n_agents), dtype=np.float16)
+        self.terminal_memory = np.zeros(self.mem_size, dtype=np.bool)
+
+    def store_transition(self, state, action, reward_g, reward_t1, reward_t2, reward_cost, state_, done):
+        index = self.mem_cntr % self.mem_size
+        self.state_memory[index] = state
+        self.action_memory[index] = action
+        self.reward_global_memory[index] = reward_g
+        self.reward_task1[index] = reward_t1
+        self.reward_task2[index] = reward_t2
+        self.reward_cost[index] = reward_cost           # [RQ1-CMDP]
+        self.new_state_memory[index] = state_
+        self.terminal_memory[index] = done
+
+        self.mem_cntr += 1
+
+    def sample_buffer(self, batch_size):
+        max_mem = min(self.mem_cntr, self.mem_size)
+
+        batch = np.random.choice(max_mem, batch_size)
+
+        states = self.state_memory[batch]
+        actions = self.action_memory[batch]
+        rewards_g = self.reward_global_memory[batch]
+        rewards_task1 = self.reward_task1[batch]
+        rewards_task2 = self.reward_task2[batch]
+        rewards_cost = self.reward_cost[batch]          # [RQ1-CMDP]
+        states_ = self.new_state_memory[batch]
+        dones = self.terminal_memory[batch]
+
+        return states, actions, rewards_g, rewards_task1, rewards_task2, rewards_cost, states_, dones
