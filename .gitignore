@@ -10,6 +10,15 @@ data/
 **/model/**/*.mat
 **/model/**/*.png
 
+# NARROW exception: the curated raw-.mat archive for off-machine reproducibility
+# (results_remote/raw/all_runs_mat.tar.gz + MANIFEST). Does NOT un-ignore the model/
+# tree, checkpoints, TB events, or logs — scoped only to results_remote/raw/.
+!results_remote/raw/
+!results_remote/raw/**
+# ...but still keep python caches out of the tracked raw dir
+results_remote/raw/__pycache__/
+results_remote/raw/*.pyc
+
 **/Classes/tmp/ddpg/*
 !**/Classes/tmp/ddpg/*.txt
 

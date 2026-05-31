@@ -1,0 +1,439 @@
+MANIFEST -- all_runs_mat.tar.gz
+AoI-V2X-CMDP RQ1 remote campaign raw .mat outputs (30 runs, 300 ep each).
+Archive: results_remote/raw/all_runs_mat.tar.gz  (gzip; paths preserved as marl_model_<tag>/<name>.mat)
+
+Unpack (from results_remote/raw/):
+    tar --force-local -xzf all_runs_mat.tar.gz -C <dest>
+  -> recreates marl_model_<tag>/*.mat under <dest>.
+
+Tag encoding:  hard_seed<N>_t<TAU>e<100*EPS>[_floor]   |   soft_seed<N>_base
+  mode  : 'hard' = per-platoon CMDP P(AoI_j>tau)<=eps ;  'soft' = AoI as -AoI/20 reward penalty (baseline, tau/eps-independent)
+  tau   : AoI threshold (slots).   eps : target per-platoon violation probability.
+  floor : suffix '_floor' => --aoi_floor 0.005 (Exp2 feasibility safeguard); absent => 0.0 (default).
+  Locked config for every run: episodes=300, eta_lam=1.0, lam_max=20.  Env: torch 2.6+cu126 / numpy 2.2.4, RTX 4090.
+
+.mat files per run (12): AoI, AoI_evolution, viol_rate, lambda, power, demand, V2I, V2V, Jain, reward_t1, reward_t2, reward_global
+
+==============================================================================
+[marl_model_hard_seed2_t10e10/]  ->  mode=hard  tau=10  eps=0.10  seed=2  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed2_t10e15/]  ->  mode=hard  tau=10  eps=0.15  seed=2  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed2_t12e10/]  ->  mode=hard  tau=12  eps=0.10  seed=2  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed2_t12e15/]  ->  mode=hard  tau=12  eps=0.15  seed=2  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed2_t8e10/]  ->  mode=hard  tau=8  eps=0.10  seed=2  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed2_t8e10_floor/]  ->  mode=hard  tau=8  eps=0.10  seed=2  aoi_floor=0.005
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed2_t8e15/]  ->  mode=hard  tau=8  eps=0.15  seed=2  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t10e10/]  ->  mode=hard  tau=10  eps=0.10  seed=3  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t10e15/]  ->  mode=hard  tau=10  eps=0.15  seed=3  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t12e10/]  ->  mode=hard  tau=12  eps=0.10  seed=3  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t12e15/]  ->  mode=hard  tau=12  eps=0.15  seed=3  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t8e10/]  ->  mode=hard  tau=8  eps=0.10  seed=3  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t8e10_floor/]  ->  mode=hard  tau=8  eps=0.10  seed=3  aoi_floor=0.005
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed3_t8e15/]  ->  mode=hard  tau=8  eps=0.15  seed=3  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t10e10/]  ->  mode=hard  tau=10  eps=0.10  seed=4  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t10e15/]  ->  mode=hard  tau=10  eps=0.15  seed=4  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t12e10/]  ->  mode=hard  tau=12  eps=0.10  seed=4  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t12e15/]  ->  mode=hard  tau=12  eps=0.15  seed=4  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t8e10/]  ->  mode=hard  tau=8  eps=0.10  seed=4  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t8e10_floor/]  ->  mode=hard  tau=8  eps=0.10  seed=4  aoi_floor=0.005
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed4_t8e15/]  ->  mode=hard  tau=8  eps=0.15  seed=4  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed5_t8e10/]  ->  mode=hard  tau=8  eps=0.10  seed=5  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed6_t8e10/]  ->  mode=hard  tau=8  eps=0.10  seed=6  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_hard_seed7_t8e10/]  ->  mode=hard  tau=8  eps=0.10  seed=7  aoi_floor=0.0
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_soft_seed2_base/]  ->  mode=soft (baseline)  seed=2  (tau/eps N/A -- soft policy is tau-independent)
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_soft_seed3_base/]  ->  mode=soft (baseline)  seed=3  (tau/eps N/A -- soft policy is tau-independent)
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_soft_seed4_base/]  ->  mode=soft (baseline)  seed=4  (tau/eps N/A -- soft policy is tau-independent)
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_soft_seed5_base/]  ->  mode=soft (baseline)  seed=5  (tau/eps N/A -- soft policy is tau-independent)
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_soft_seed6_base/]  ->  mode=soft (baseline)  seed=6  (tau/eps N/A -- soft policy is tau-independent)
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+[marl_model_soft_seed7_base/]  ->  mode=soft (baseline)  seed=7  (tau/eps N/A -- soft policy is tau-independent)
+      AoI.mat                  12184 bytes
+      AoI_evolution.mat       400208 bytes
+      Jain.mat                  2584 bytes
+      V2I.mat                 400192 bytes
+      V2V.mat                 400192 bytes
+      demand.mat              400200 bytes
+      lambda.mat                6192 bytes
+      power.mat               400200 bytes
+      reward_global.mat         2600 bytes
+      reward_t1.mat            12200 bytes
+      reward_t2.mat            12200 bytes
+      viol_rate.mat             6200 bytes
+
+==============================================================================
+Total run dirs: 30   Total .mat files: 360
