@@ -24,7 +24,10 @@ class G_CriticNetwork(nn.Module):
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.fc3_dims = fc3_dims
+        # [RQ1-CMDP] allow per-run checkpoint dir via env var so concurrent runs don't race.
+        chkpt_dir = os.environ.get('RQ1_CKPT_SUBDIR', chkpt_dir)
         self.checkpoint_dir =  os.path.join(os.path.dirname(os.path.realpath(__file__)), chkpt_dir)
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.checkpoint_file = os.path.join(self.checkpoint_dir, self.name + '_ddpg')
 
         self.fc1 = nn.Linear(self.input_dims, self.fc1_dims)

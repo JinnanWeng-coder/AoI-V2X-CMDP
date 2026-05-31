@@ -81,7 +81,7 @@ width = 750 / 2
 height = 1298 / 2
 IS_TRAIN = 1
 IS_TEST = 1 - IS_TRAIN
-label = 'marl_model_' + CONSTRAINT_MODE   # [RQ1-CMDP] separate soft/hard outputs
+label = 'marl_model_' + CONSTRAINT_MODE + '_seed' + str(SEED)   # [RQ1-CMDP] separate soft/hard/seed outputs
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 repo_dir = os.path.dirname(current_dir)

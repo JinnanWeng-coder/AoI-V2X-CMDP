@@ -12,3 +12,10 @@ data/
 
 **/Classes/tmp/ddpg/*
 !**/Classes/tmp/ddpg/*.txt
+
+# per-run checkpoint subdirs (RQ1_CKPT_SUBDIR), TensorBoard events, run logs
+# — all runtime artifacts, regenerated on each machine; keep them out of git
+**/Classes/tmp/ddpg_*/
+**/runs/**/events.out.*
+**/logs/
+results_local/__pycache__/
