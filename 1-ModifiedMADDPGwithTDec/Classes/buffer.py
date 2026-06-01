@@ -12,7 +12,7 @@ class ReplayBuffer():
         # [RQ1-CMDP] per-platoon constraint cost (AoI-violation indicator).
         self.reward_cost = np.zeros((self.mem_size, n_agents), dtype=np.float16)
         self.new_state_memory = np.zeros((self.mem_size, input_shape * n_agents), dtype=np.float16)
-        self.terminal_memory = np.zeros(self.mem_size, dtype=np.bool)
+        self.terminal_memory = np.zeros(self.mem_size, dtype=bool)  # [RQ1-CMDP] np.bool removed in numpy>=1.24
 
     def store_transition(self, state, action, reward_g, reward_t1, reward_t2, reward_cost, state_, done):
         index = self.mem_cntr % self.mem_size

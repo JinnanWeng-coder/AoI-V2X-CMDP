@@ -34,6 +34,16 @@ parser.add_argument('--eps', type=float, default=0.10, help='target violation pr
 parser.add_argument('--eta_lam', type=float, default=3.0, help='dual step size')
 parser.add_argument('--lam_max', type=float, default=20.0, help='multiplier clip')
 parser.add_argument('--smoke', action='store_true', help='tiny end-to-end test run')
+# [RQ1-CMDP] feasibility safeguard: in hard mode keep a small AoI-penalty FLOOR
+#   (aoi_penalty_coef = aoi_floor) so a structurally-unservable platoon still gets
+#   gradient pressure once its lambda saturates, instead of being abandoned.
+#   default 0.0 preserves the original hard-mode behaviour (penalty fully off).
+parser.add_argument('--aoi_floor', type=float, default=0.0,
+                    help='hard-mode soft AoI-penalty floor (0.0 = original behaviour)')
+# [RQ1-CMDP] optional output-folder tag so runs that share (mode,seed) but differ
+#   in tau/eps/floor do NOT overwrite each other's model/ outputs.
+parser.add_argument('--out_tag', type=str, default='',
+                    help='appended to the output folder label for run isolation')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -82,6 +92,8 @@ height = 1298 / 2
 IS_TRAIN = 1
 IS_TEST = 1 - IS_TRAIN
 label = 'marl_model_' + CONSTRAINT_MODE + '_seed' + str(SEED)   # [RQ1-CMDP] separate soft/hard/seed outputs
+if args.out_tag:                                               # [RQ1-CMDP] further isolate by tau/eps/floor
+    label = label + '_' + args.out_tag
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 repo_dir = os.path.dirname(current_dir)
@@ -142,7 +154,7 @@ env.tau_aoi = args.tau
 env.eps_viol = args.eps
 # In 'hard' mode AoI is a constraint, so the soft reward penalty is switched off;
 # in 'soft' mode it keeps the original 1/20 weight.
-env.aoi_penalty_coef = 0.0 if CONSTRAINT_MODE == 'hard' else (1.0 / 20)
+env.aoi_penalty_coef = args.aoi_floor if CONSTRAINT_MODE == 'hard' else (1.0 / 20)
 
 n_episode = args.episodes
 n_step_per_episode = int(env.time_slow / env.time_fast)
@@ -151,8 +163,10 @@ if args.smoke:                       # tiny end-to-end sanity run
     n_episode = 3
     n_step_per_episode = 20
     n_episode_test = 3
-print('=== RQ1 run: mode=%s seed=%d episodes=%d tau=%.1f eps=%.2f smoke=%s ==='
-      % (CONSTRAINT_MODE, SEED, n_episode, args.tau, args.eps, args.smoke))
+print('=== RQ1 run: mode=%s seed=%d episodes=%d tau=%.1f eps=%.2f eta_lam=%.2f '
+      'aoi_floor=%.4f label=%s smoke=%s ==='
+      % (CONSTRAINT_MODE, SEED, n_episode, args.tau, args.eps, args.eta_lam,
+         args.aoi_floor, label, args.smoke))
 # ------------------------------------------------------------------------------------------------------------------ #
 def get_state(env, idx):
     """ Get state from the environment """
@@ -248,7 +262,7 @@ if IS_TRAIN:
         for i_step in range(n_step_per_episode):
             state_new_all = []
             action_all = []
-            action_all_training = np.zeros([n_platoon, n_output], dtype=np.int)
+            action_all_training = np.zeros([n_platoon, n_output], dtype=int)  # [RQ1-CMDP] np.int removed in numpy>=1.24
             # receive observation
             for i in range(n_platoon):
                 action = agents[i].choose_action(state_old_all[i])

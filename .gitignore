@@ -19,3 +19,7 @@ data/
 **/runs/**/events.out.*
 **/logs/
 results_local/__pycache__/
+results_remote/__pycache__/
+
+# local virtual env (inherits shared conda torch+CUDA via --system-site-packages)
+.venv/
