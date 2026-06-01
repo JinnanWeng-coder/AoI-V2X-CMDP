@@ -1,5 +1,12 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
+> **CURRENT SINGLE SOURCE OF TRUTH FOR LIVE STATE:
+> [`results_remote/HANDOVER.md`](results_remote/HANDOVER.md)** — read it FIRST.
+> It captures the three experiment batches (6-seed headline; tau/eps phase
+> diagram; the in-flight sigma-anneal + PID stability study), the detached-run
+> mechanics, the reboot-resume command, done-checks, and the unpushed local
+> commits. Do NOT re-run any run whose `.out` already has the completion marker.
+
 > You are picking up an in-progress experiment. This file tells you **what was
 > changed, what to run, what success looks like, and exactly what to do next
 > whether it fails or succeeds.** A companion design log lives one level up at
