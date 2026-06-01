@@ -7,7 +7,7 @@ AoI-V2X-backup-main/
 
 data/
 
-**/model/**/*.mat
+# model/**/*.mat are now tracked via Git LFS (see .gitattributes); only .png stay ignored
 **/model/**/*.png
 
 # NARROW exception: the curated raw-.mat archive for off-machine reproducibility
