@@ -44,6 +44,28 @@ parser.add_argument('--aoi_floor', type=float, default=0.0,
 #   in tau/eps/floor do NOT overwrite each other's model/ outputs.
 parser.add_argument('--out_tag', type=str, default='',
                     help='appended to the output folder label for run isolation')
+# [RQ1-CMDP] STABILITY STUDY flags (both default to the EXISTING behaviour).
+#   --sigma_anneal : linearly anneal the actor exploration noise from
+#     --sigma_start (0.3) to --sigma_end (0.05) over training. Default OFF =>
+#     noise stays the constant 0.3 set at agent construction (current behaviour).
+#     Targets the per-seed RL-variance "hair-over-eps" miss (Year-1: sigma=0.3
+#     actor noise was ~78% of reward variance).
+#   --dual {integral,pid} : dual-ascent rule for lambda_j. 'integral' (default)
+#     is the EXACT current pure-integral update (kept byte-for-byte so
+#     --dual integral reproduces existing lambda traces). 'pid' is the
+#     PID-Lagrangian of Stooke 2020 on the error e=(viol_rate_j - eps), with the
+#     SAME [0, lam_max] clip; --kp/--ki/--kd are its gains. With kp=kd=0 and
+#     ki=eta_lam the PID law reduces to the integral law. Targets the dual
+#     limit-cycle/chatter.
+parser.add_argument('--sigma_anneal', action='store_true',
+                    help='[RQ1-CMDP] linearly anneal actor noise sigma_start->sigma_end over training (default off => const 0.3)')
+parser.add_argument('--sigma_start', type=float, default=0.3, help='[RQ1-CMDP] anneal start sigma')
+parser.add_argument('--sigma_end', type=float, default=0.05, help='[RQ1-CMDP] anneal end sigma')
+parser.add_argument('--dual', choices=['integral', 'pid'], default='integral',
+                    help='[RQ1-CMDP] dual update rule (default integral = current behaviour)')
+parser.add_argument('--kp', type=float, default=1.0, help='[RQ1-CMDP] PID proportional gain')
+parser.add_argument('--ki', type=float, default=1.0, help='[RQ1-CMDP] PID integral gain')
+parser.add_argument('--kd', type=float, default=0.5, help='[RQ1-CMDP] PID derivative gain')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -167,6 +189,18 @@ print('=== RQ1 run: mode=%s seed=%d episodes=%d tau=%.1f eps=%.2f eta_lam=%.2f '
       'aoi_floor=%.4f label=%s smoke=%s ==='
       % (CONSTRAINT_MODE, SEED, n_episode, args.tau, args.eps, args.eta_lam,
          args.aoi_floor, label, args.smoke))
+# [RQ1-CMDP] stability-study banner.
+if args.sigma_anneal:
+    print('    [stability] sigma-anneal ON: %.3f -> %.3f linearly over %d episodes'
+          % (args.sigma_start, args.sigma_end, n_episode))
+else:
+    print('    [stability] sigma-anneal OFF: noise const = %.3f' % noise)
+if args.dual == 'pid':
+    print('    [stability] dual=PID-Lagrangian (kp=%.2f ki=%.2f kd=%.2f), clip[0,%.1f]'
+          % (args.kp, args.ki, args.kd, args.lam_max))
+else:
+    print('    [stability] dual=integral (eta_lam=%.2f), clip[0,%.1f]'
+          % (args.eta_lam, args.lam_max))
 # ------------------------------------------------------------------------------------------------------------------ #
 def get_state(env, idx):
     """ Get state from the environment """
@@ -234,8 +268,21 @@ if IS_TRAIN:
     # global_agent.load_models()
     # for i in range(n_platoon):
     #     agents[i].load_models()
+    # [RQ1-CMDP] PID-Lagrangian per-platoon state (only used when --dual pid).
+    #   lam_I = integral accumulator (plays lambda's role in the pure-integral law);
+    #   lam_err_prev = previous-episode error for the derivative term.
+    lam_I = np.zeros(n_platoon, dtype=np.float64)
+    lam_err_prev = np.zeros(n_platoon, dtype=np.float64)
     for i_episode in range(n_episode):
         done = False
+        # [RQ1-CMDP] sigma-anneal: linearly lower the actor exploration noise over
+        #   training. Default off -> agent.noise stays the constant 0.3 set at
+        #   construction (i.e. this whole block is a no-op unless --sigma_anneal).
+        if args.sigma_anneal:
+            frac = (i_episode / (n_episode - 1)) if n_episode > 1 else 0.0
+            cur_sigma = args.sigma_start + (args.sigma_end - args.sigma_start) * frac
+            for ag in agents:
+                ag.noise = cur_sigma
         print("-------------------------------------------------------------------------------------------------------")
         record_reward_t1 = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)
         record_reward_t2 = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)
@@ -348,9 +395,23 @@ if IS_TRAIN:
         # Two-timescale dual ascent (slow loop): raise lambda_j when platoon j
         # exceeds its target violation probability, lower it otherwise.
         if CONSTRAINT_MODE == 'hard':
-            for j in range(n_platoon):
-                new_lam = agents[j].lam + args.eta_lam * (viol_rate[j] - env.eps_viol)
-                agents[j].lam = float(np.clip(new_lam, 0.0, args.lam_max))
+            if args.dual == 'integral':
+                # original pure-integral law (UNCHANGED -- byte-for-byte path).
+                for j in range(n_platoon):
+                    new_lam = agents[j].lam + args.eta_lam * (viol_rate[j] - env.eps_viol)
+                    agents[j].lam = float(np.clip(new_lam, 0.0, args.lam_max))
+            else:
+                # [RQ1-CMDP] PID-Lagrangian (Stooke 2020) on e=(viol_rate_j - eps).
+                #   I_j   <- clip(I_j + ki*e, 0, lam_max)            (integral)
+                #   lam_j  = clip(kp*e + I_j + kd*(e - e_prev), 0, lam_max)
+                # With kp=kd=0, ki=eta_lam this reduces to the integral law above.
+                for j in range(n_platoon):
+                    e = viol_rate[j] - env.eps_viol
+                    lam_I[j] = float(np.clip(lam_I[j] + args.ki * e, 0.0, args.lam_max))
+                    deriv = e - lam_err_prev[j]
+                    lam_pid = args.kp * e + lam_I[j] + args.kd * deriv
+                    agents[j].lam = float(np.clip(lam_pid, 0.0, args.lam_max))
+                    lam_err_prev[j] = e
         lambda_total[:, i_episode] = np.array([agents[j].lam for j in range(n_platoon)])
         print('  [%s] ep %d  viol_rate=%s  lambda=%s'
               % (CONSTRAINT_MODE, i_episode, np.round(viol_rate, 3),
