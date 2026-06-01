@@ -139,7 +139,7 @@ def task_phase(seeds, taus, epses, **_):
                 cell.append(dict(seed=s, n_pass=n_pass, P=P, worst_feas=worst_feas,
                                  infeas=infeas, viol=viol))
             grid[(t, e)] = cell
-    # print table
+    # per-seed detail (kept for traceability)
     print("\n  (tau, eps) | per-seed #pass/P | strict-all-pass seeds | worst-feasible (mean) | infeasible (seed,pl)")
     for (t, e), cell in grid.items():
         if not cell:
@@ -152,6 +152,26 @@ def task_phase(seeds, taus, epses, **_):
               (t, e, " ".join(passes), n_all, len(cell), np.nanmean(wf),
                np.round(wf, 3).tolist(),
                ["s%dpl%d=%.2f" % (s, j, v) for (s, j, v) in infeas] or "none"))
+
+    # aggregate markdown table: per cell, mean +- 95% CI over the seeds in that cell
+    print("\n  --- 6-seed aggregate (mean +- 95%% CI, t_crit) ---")
+    print("\n| (tau, eps) | seeds | mean #pass/5 (+-95CI) | strict 5/5 | worst-feasible viol (mean+-95CI) | #infeasible (sacrificed) |")
+    print("|---|---|---|---|---|---|")
+    for (t, e), cell in grid.items():
+        if not cell:
+            print("| (%g, %.2f) | 0 | - | - | - | - |" % (t, e)); continue
+        n = len(cell)
+        npass = np.array([c["n_pass"] for c in cell], dtype=np.float64)
+        wf = np.array([c["worst_feas"] for c in cell], dtype=np.float64)
+        pm, pci = ci95(npass)
+        # worst-feasible CI over seeds that HAVE a feasible platoon (nan-safe)
+        wf_ok = wf[~np.isnan(wf)]
+        wm, wci = ci95(wf_ok) if wf_ok.size else (float("nan"), 0.0)
+        n_all = sum(c["n_pass"] == c["P"] for c in cell)
+        n_infeas = sum(len(c["infeas"]) for c in cell)        # sacrificed (seed,platoon) pairs
+        seeds_infeas = sum(1 for c in cell if c["infeas"])    # seeds with >=1 sacrificed
+        print("| (%g, %.2f) | %d | %.2f +- %.2f | %d/%d | %.3f +- %.3f | %d (in %d/%d seeds) |" %
+              (t, e, n, pm, pci, n_all, n, wm, wci, n_infeas, seeds_infeas, n))
     _plot_phase(grid, seeds, taus, epses)
     return grid
 
