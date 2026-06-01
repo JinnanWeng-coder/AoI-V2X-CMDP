@@ -10,14 +10,12 @@ data/
 # model/**/*.mat are now tracked via Git LFS (see .gitattributes); only .png stay ignored
 **/model/**/*.png
 
-# NARROW exception: the curated raw-.mat archive for off-machine reproducibility
-# (results_remote/raw/all_runs_mat.tar.gz + MANIFEST). Does NOT un-ignore the model/
-# tree, checkpoints, TB events, or logs — scoped only to results_remote/raw/.
-!results_remote/raw/
-!results_remote/raw/**
-# ...but still keep python caches out of the tracked raw dir
-results_remote/raw/__pycache__/
-results_remote/raw/*.pyc
+# results_local/ is fully ignored — superseded by the LFS-tracked 45-run dataset
+# and results_remote/; the local .mat live in backup/ outside the repo.
+results_local/
+
+# raw-.mat archive folder was removed (data now lives directly via Git LFS)
+results_remote/raw/
 
 **/Classes/tmp/ddpg/*
 !**/Classes/tmp/ddpg/*.txt
@@ -27,7 +25,6 @@ results_remote/raw/*.pyc
 **/Classes/tmp/ddpg_*/
 **/runs/**/events.out.*
 **/logs/
-results_local/__pycache__/
 results_remote/__pycache__/
 
 # local virtual env (inherits shared conda torch+CUDA via --system-site-packages)
