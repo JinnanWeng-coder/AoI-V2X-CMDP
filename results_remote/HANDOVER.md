@@ -1,140 +1,161 @@
 # RQ1 HANDOVER — single source of truth for the next session
 
-> **Fresh agent: read THIS, then `CLAUDE.md` (repo root), then
-> `results_remote/RQ1_STABILITY_REPORT.md`. Check disk state before acting.
-> Do NOT re-run any run whose `.out` already contains the completion marker
+> **Fresh agent: read `CLAUDE.md` (repo root) THEN this file. Check disk state
+> before acting. Do NOT re-run any run whose `.out` already contains the marker
 > `simulation took this much time`.** Everything stays inside
-> `D:\Jinnan\CMDP\AoI-V2X-CMDP` (shared machine).
+> `D:\Jinnan\CMDP\AoI-V2X-CMDP` (shared machine). Never `git push` (no TTY for
+> creds — commit locally, report hashes, the human pushes). Never recalibrate the
+> locked config; never drop a seed.
 
-Last updated by the agent at the start of the stability runs (PID wave in flight).
+**Last updated: 2026-06-03 ~19:10, immediately before a planned reboot that wipes
+the session (but NOT the disk).**
 
 ---
 
-## 1. Project state — three experiment batches
+## 0. IMMEDIATE NEXT ACTION — finish the in-flight ep600 re-run
 
-The codebase (`1-ModifiedMADDPGwithTDec`) compares per-platoon AoI handling:
-`--mode soft` (AoI as `-AoI/20` reward penalty, baseline) vs `--mode hard`
-(per-platoon CMDP `P(AoI_j>tau)<=eps` via a cost critic + per-platoon Lagrange
-multiplier `lambda_j`, two-timescale dual). The global-critic gradient bug is
-retained on purpose (constraint attaches to the local actor) so soft-vs-hard is
-a clean A/B. See `RQ1_CMDP_IMPLEMENTATION.md` for the code change.
+A 600-episode re-run was running when the reboot was scheduled. Disk + `.out`
+markers survive the reboot; the detached processes do not. To continue:
 
-| batch | status | what it shows |
+```powershell
+cd D:\Jinnan\CMDP\AoI-V2X-CMDP ; git pull
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\resume_ep600.ps1
+```
+
+Idempotent: skips finished runs, re-runs only the missing ones from ep 0, then
+self-writes `RQ1_EP600_REPORT.md` + `fig_ep600_convergence.png`. The host kills
+detached procs on idle — re-run the same command whenever runs go stale (no
+`python.exe`, driver pid gone, `.out` LastWriteTime old). Poll
+`1-ModifiedMADDPGwithTDec/logs/ep600_driver.progress.log`.
+
+**ep600 experiment** (`results_remote/ep600_driver.ps1` / `analyze_ep600.py` /
+`resume_ep600.ps1`): t8e10, `--episodes 600`, locked config otherwise unchanged
+(tau=8 eps=0.10 eta_lam=1.0 lam_max=20, PID kp=1 ki=1 kd=0.5, sigma const 0.3 — NO
+`--sigma_anneal`). Three arms × seeds {2-7} = 18 runs, NEW `_ep600` tags so the
+300-ep runs are NOT overwritten:
+- soft → `marl_model_soft_seed{S}_base_ep600`
+- hard integral → `marl_model_hard_seed{S}_t8e10_ep600`
+- hard PID → `marl_model_hard_seed{S}_t8e10_pid_ep600`
+
+**WHY:** raw-`.mat` convergence analysis (50-ep blocks of `AoI.mat`) showed three
+300-ep runs are UNDER-TRAINED — a single cap-bound platoon is only rescued in the
+last 50 ep and still descending at ep300 (soft-s2 pl2: …100,100,57; hard-int-s3
+pl0: …97,76,13; hard-int-s7 pl0: …97,98,54), so their last-100-ep window sits
+mid-transition. Main.py trains from scratch (no resume), so "extend" = re-run at
+600 ep. PID runs were already converged by ep50.
+
+**State at reboot:** soft `_base_ep600` **6/6 DONE**; integral `t8e10_ep600`
+**0/6** (wave 2 was in flight ~ep400 — will be killed, no partial `.mat`, reruns
+fresh); PID `t8e10_pid_ep600` **0/6** (not started). So `resume_ep600.ps1` will
+re-run the 12 hard runs.
+
+**ANALYSIS (auto, after all 18 done)** — `analyze_ep600.py` writes
+`RQ1_EP600_REPORT.md`: (1) 50-ep blocked trajectory (12 blocks) of network-mean AoI
+for all 18 + per-platoon AoI for the 3 flagged cap-bound platoons, with a FLAT /
+NOT-flat / INSUFFICIENT verdict per run (states plainly if 600 ep is still not
+enough); (2) 300-vs-600 last-100-ep per-platoon violation, soft-vs-hard(PID)
+worst-platoon gap (±95% CI), integral "sacrificed" count (≥0.5); (3) which 300-ep
+conclusions change. The blocking was validated to reproduce the documented
+under-training pattern exactly before launch.
+
+**After all 18 + report exist → COMMIT (see §4), report hash, do NOT push.**
+
+---
+
+## 1. Project + what is DONE (all committed locally, none pushed)
+
+Codebase `1-ModifiedMADDPGwithTDec` (Parvini AoI-MARL platoon C-V2X). `--mode soft`
+(AoI as `-AoI/20` reward penalty, baseline) vs `--mode hard` (per-platoon CMDP
+`P(AoI_j>tau)<=eps` via a cost critic + per-platoon Lagrange multiplier `lambda_j`,
+two-timescale dual). Dual rule selectable: `--dual integral` (default) or
+`--dual pid --kp --ki --kd` (PID-Lagrangian, Stooke 2020). `--sigma_anneal` anneals
+actor noise 0.3→0.05. `--aoi_floor` keeps a small AoI penalty for saturated
+platoons. Global-critic gradient bug retained on purpose (orthogonal to the
+local-actor constraint). Code change detail: `../RQ1_CMDP_IMPLEMENTATION.md`.
+
+**Locked config (NEVER recalibrate): tau=8 eps=0.10 eta_lam=1.0 lam_max=20,
+PID kp=1.0 ki=1.0 kd=0.5, scenario 5 platoons × 4 veh × 3 RB, seeds paired.**
+
+| batch | report | headline finding |
 |---|---|---|
-| **(1) 6-seed headline** (soft vs hard @ tau8 eps10, seeds 2-7) | **DONE** | Where feasible, hard drives per-platoon violation **0.197->0.100** (to the eps target) at ~flat AoI; cost ~1.6x Tx power, ~1.7x remaining V2V demand; 3/30 structurally-infeasible platoons flagged via `lambda->lam_max`. |
-| **(2) tau/eps phase diagram** (hard, taus {8,10,12} x eps {0.10,0.15}, 6 seeds/cell) + `--aoi_floor` safeguard (seeds 2-4) | **DONE** | Loosening tau/eps reduces but does **not** buy strict feasibility (no off-floor cell averages >=4.5/5 pass at n=6). `--aoi_floor 0.005` bounds an unservable platoon (AoI 90->17) without harming feasible ones. |
-| **(3) stability study** = sigma-anneal arm + PID-Lagrangian arm | **RUNNING** (anneal done, PID in flight) | Tests two residual failure modes: (a) per-seed RL variance leaves a feasible platoon a hair over eps -> **sigma-anneal**; (b) dual limit-cycles -> **PID-Lagrangian**. Clean ablation, one knob at a time. Result lands in `RQ1_STABILITY_REPORT.md`. |
+| 6-seed headline + tau/eps phase (INTEGRAL) + aoi_floor safeguard | `RQ1_REMOTE_REPORT.md` | feasible platoons driven 0.197→0.100 at flat AoI; ~1.6× power; 3/30 structurally-infeasible flagged; floor bounds an unservable platoon (AoI 90→17). |
+| stability: σ-anneal vs PID-Lagrangian | `RQ1_STABILITY_REPORT.md` | **PID removes the dual limit-cycle** (λ-std 1.13→0.69) AND improves feasibility (feasible 15→24/30, sacrificed 3→0) cheaper; σ-anneal MIXED (cuts hair-over-ε but worsens worst-feasible + more power). PID is the win. |
+| PID τ/ε phase diagram (30 runs) | `RQ1_PHASE_PID_REPORT.md` | frontier **SOFTENED not overturned**: sacrifices integral 6 → PID 1; seed3-pl0 is τ-recoverable, **seed2-pl2 is truly resource-limited** (λ≈20 at all τ). |
+| EXP1 PID+aoi_floor + EXP2 n=10 CI (31 runs) | `RQ1_FLOOR_AND_CI_REPORT.md` | EXP1 **NEGATIVE/seed-dependent**: under PID the floor BREAKS seed2-pl2 (AoI 4.3→100); seed3 helps. EXP2 at n=10: soft-vs-hard(PID) worst-platoon gap HOLDS (0.324±0.118 @τ8); "no cell ≥4.5/5" HOLDS; "PID>integral #pass at t8e10" WEAKENS (CIs overlap). |
+| **ep600 convergence re-run (18 runs)** | `RQ1_EP600_REPORT.md` | **IN FLIGHT — see §0.** Tests whether 600 ep flattens the under-trained transition and which 300-ep numbers change. |
 
-Full results of (1)+(2): `results_remote/RQ1_REMOTE_REPORT.md`.
+**Commits (local only, NOT pushed — human pushes & cross-checks raw `.mat`):**
+- `d14dab1` — EXP1 (PID+aoi_floor) + EXP2 (n=10 CI): 31 runs + report + figure
+- `04669cf` — PID phase diagram: 30 runs + report + figure
+- `95e83ea` — stability: σ-anneal + PID: report + 2 figures + 12 LFS .mat
+- `8ccecd0` — stability HANDOVER + driver/analysis scripts
+- `c6fc6e9` — Main.py: `--sigma_anneal` + `--dual pid` flags
+- `3ecc1a5` — Git LFS tracking of all run `.mat`
+- (the **ep600 commit is still PENDING** — make it after §0 completes.)
 
-**45 archived runs** (all 300 ep): soft s{2-7}; hard `t8e10` s{2-7}; hard
-{`t8e15`,`t10e10`,`t10e15`,`t12e10`,`t12e15`} s{2-7}; hard `t8e10_floor` s{2,3,4}.
-All `.mat` are tracked via **Git LFS** (`.gitattributes`:
-`1-ModifiedMADDPGwithTDec/model/**/*.mat`). Tar fallback:
-`results_remote/raw/all_runs_mat.tar.gz` + `MANIFEST.txt`.
-
----
-
-## 2. Stability study mechanics (batch 3)
-
-**Code (Main.py, tagged `[RQ1-CMDP]`, both default = existing behaviour):**
-- `--sigma_anneal` — linearly anneal actor noise `--sigma_start 0.3 -> --sigma_end 0.05`
-  over training. Default off => noise const 0.3.
-- `--dual {integral,pid}` with `--kp --ki --kd` — `integral` (default) is the
-  EXACT current pure-integral dual (kept byte-for-byte; verified it reproduces
-  the documented smoke lambda trace `ep2=[3.3,2.55,8.1,4.5,0]`). `pid` is
-  PID-Lagrangian (Stooke 2020) on `e=(viol_rate_j-eps)`, same `[0,lam_max]` clip;
-  with `kp=kd=0, ki=eta_lam` it reduces to integral.
-
-**Locked config (do NOT recalibrate): `tau=8 eps=0.10 eta_lam=1.0 lam_max=20
-episodes=300 aoi_floor=0.0`, seeds {2,3,4,5,6,7}, paired.**
-
-**Three arms** (only the stability knob differs):
-- **A baseline** — sigma const, integral = the EXISTING hard `t8e10` s{2-7} (REUSE, do not rerun).
-- **B anneal** — `--sigma_anneal`, integral. Tag **`t8e10_anneal`**, 6 runs.
-- **C pid** — sigma const, `--dual pid --kp 1.0 --ki 1.0 --kd 0.5`. Tag **`t8e10_pid`**, 6 runs.
-
-**Scripts (in `results_remote/`):**
-- `stability_driver.ps1` — detached, idempotent driver. Runs wave B then wave C
-  (concurrency 6, per-run `RQ1_CKPT_SUBDIR=tmp/ddpg_<name>`), blocks on each
-  wave's completion markers, then runs the finalizer. Skips any run whose marker
-  already exists.
-- `stability_finalize_watch.ps1` — detached watcher: polls for all 12 markers,
-  then runs `finalize_stability.py`. Idempotent via `logs/stability.finalized`
-  sentinel. (Belt-and-suspenders with the driver's own finalize step.)
-- `finalize_stability.py` — computes the 3-arm table (reuses
-  `analyze_stability.per_seed` -> last-100-ep viol@tau from `AoI_evolution.mat`),
-  writes the 2 figures + `RQ1_STABILITY_REPORT.md` with numbers-driven verdicts.
-  **Refuses to write a partial report** (exits 2 unless all 12 runs present).
-- `analyze_stability.py` — human-readable console version of the same analysis.
-- `resume_stability.ps1` — one-command reboot-resume (see below).
-
-**Where outputs land:**
-- per-run `.mat`: `1-ModifiedMADDPGwithTDec/model/marl_model_hard_seed{S}_t8e10_anneal/`
-  and `.../_t8e10_pid/` (headline files `viol_rate.mat`, `lambda.mat`, plus
-  `AoI_evolution.mat`, `power.mat`, `demand.mat`, ...).
-- report + figures: `results_remote/RQ1_STABILITY_REPORT.md`,
-  `fig_stability_lambda.png` (lambda traces baseline vs PID),
-  `fig_stability_anneal.png` (worst-feasible viol baseline vs anneal).
-- logs/markers: `1-ModifiedMADDPGwithTDec/logs/hard_seed{S}_<tag>.out`,
-  driver/watch progress logs, `stability.finalized` sentinel.
+All run `.mat` are tracked via **Git LFS** (`.gitattributes`:
+`1-ModifiedMADDPGwithTDec/model/**/*.mat`).
 
 ---
 
-## 3. Is it done? + reboot-resume
+## 2. Detached-run mechanics (same pattern every batch)
 
-**Done when:** all 12 `.out` files contain `simulation took this much time`
-**and** `results_remote/RQ1_STABILITY_REPORT.md` exists (the finalizer wrote it).
-Quick check:
+tmux/screen unavailable → a hidden, orphaned `Start-Process` driver under
+`results_remote/` that survives SSH/agent disconnect. Each driver: processes a spec
+list in waves of ≤6, per-run `RQ1_CKPT_SUBDIR=tmp/ddpg_<name>`, per-run `.out` logs
+under `logs/`, blocks on completion markers, is **idempotent** (skips runs whose
+marker exists), and **self-finalizes** (runs its analysis → report + figure, no git)
+guarded by a `*.finalized` sentinel. Each has a one-command `resume_*.ps1`.
+Env: `./.venv` (system-site-packages over shared `SimuV2X` conda torch+CUDA; numpy
+2.x `np.int/np.bool` already patched). ~16 s/ep at 6× when GPU is free (slower under
+contention). A run is "done" when its `.out` has `simulation took this much time`.
+
+Driver/analysis/resume scripts per batch (all in `results_remote/`):
+`stability_driver.ps1`/`analyze_stability.py`/`finalize_stability.py`/`resume_stability.ps1`;
+`phase_pid_driver.ps1`/`analyze_phase_pid.py`/`resume_phase_pid.ps1`;
+`floor_ci_driver.ps1`/`analyze_floor_ci.py`/`resume_floor_ci.ps1`;
+`ep600_driver.ps1`/`analyze_ep600.py`/`resume_ep600.ps1`. Shared loader:
+`analyze_remote.py` (`metrics()` recomputes last-100-ep per-platoon violation at a
+given τ from `AoI_evolution.mat`; `AoI.mat` = per-platoon mean AoI EVERY episode →
+trajectory source).
+
+---
+
+## 3. Done-check for ep600
+
 ```powershell
-$L="D:\Jinnan\CMDP\AoI-V2X-CMDP\1-ModifiedMADDPGwithTDec\logs"
-(2..7 | % { @('t8e10_anneal','t8e10_pid') | % { $t=$_ } } ) | Out-Null
-$n=0; foreach($s in 2..7){ foreach($t in 't8e10_anneal','t8e10_pid'){ if(Select-String "$L\hard_seed${s}_$t.out" -SimpleMatch 'simulation took' -Quiet){$n++} }}
-"markers: $n/12; report: " + (Test-Path 'D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\RQ1_STABILITY_REPORT.md')
+$L="D:\Jinnan\CMDP\AoI-V2X-CMDP\1-ModifiedMADDPGwithTDec\logs"; $n=0
+foreach($a in 'soft_seed{0}_base_ep600','hard_seed{0}_t8e10_ep600','hard_seed{0}_t8e10_pid_ep600'){
+ foreach($s in 2..7){ if(Select-String ($L+'\'+($a -f $s)+'.out') -SimpleMatch 'simulation took' -Quiet){$n++} }}
+"ep600 markers: $n/18; report: " + (Test-Path 'D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\RQ1_EP600_REPORT.md')
 ```
 
-**Reboot-resume (idempotent — skips finished runs, reruns only missing, then
-finalizes; relaunches driver + watcher detached, no git):**
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\resume_stability.ps1
-```
-Persistent-session note: tmux/screen are NOT installed; the Windows equivalent
-is the hidden orphaned `Start-Process` used above (independent of SSH/agent).
-Env: `./.venv` (system-site-packages over the shared `SimuV2X` conda torch+CUDA;
-numpy 2.x => `np.int/np.bool` already patched). ~15-20 s/ep at 6x on this shared
-GPU; ~75-100 min/wave.
-
 ---
 
-## 4. Open items for the human (git — DO NOT let an agent push)
+## 4. COMMIT the ep600 batch (after all 18 + report exist; local only)
 
-Two local commits already made (NOT pushed):
-- `3ecc1a5` — Task 1: Git LFS tracking of all 540 `.mat` (45 runs).
-- `c6fc6e9` — Task 2 code: `--sigma_anneal` + `--dual pid` flags.
-
-**Pending Task-2 results commit** (left on disk for the human; agents must not
-commit/push it per instruction). After the 12 runs + report exist:
 ```
 cd D:\Jinnan\CMDP\AoI-V2X-CMDP
-git add results_remote/RQ1_STABILITY_REPORT.md results_remote/HANDOVER.md ^
-        results_remote/fig_stability_lambda.png results_remote/fig_stability_anneal.png ^
-        results_remote/stability_driver.ps1 results_remote/stability_finalize_watch.ps1 ^
-        results_remote/resume_stability.ps1 results_remote/analyze_stability.py ^
-        results_remote/finalize_stability.py ^
-        1-ModifiedMADDPGwithTDec/model/marl_model_hard_seed*_t8e10_anneal ^
-        1-ModifiedMADDPGwithTDec/model/marl_model_hard_seed*_t8e10_pid
-git commit -m "RQ1 stability study: sigma-anneal + PID arms (12 runs) + report"
-git push        # human runs this; LFS objects push too
+git add 1-ModifiedMADDPGwithTDec/model/marl_model_soft_seed{2,3,4,5,6,7}_base_ep600 ^
+        1-ModifiedMADDPGwithTDec/model/marl_model_hard_seed{2,3,4,5,6,7}_t8e10_ep600 ^
+        1-ModifiedMADDPGwithTDec/model/marl_model_hard_seed{2,3,4,5,6,7}_t8e10_pid_ep600 ^
+        results_remote/RQ1_EP600_REPORT.md results_remote/fig_ep600_convergence.png ^
+        results_remote/ep600_driver.ps1 results_remote/analyze_ep600.py results_remote/resume_ep600.ps1 ^
+        CLAUDE.md results_remote/HANDOVER.md
+# VERIFY staged = ONLY those .mat (216 = 18×12) + report + figure + 3 scripts + the 2 docs.
+# NO checkpoints (Classes/tmp/ddpg_*), TB events (runs/**/events.out.*), logs/, or .claude/.
+git status --short | grep -v '^?? \.claude/$'    # should show only intended staged files
+git commit -m "RQ1 ep600 convergence re-run: 18 runs (t8e10 soft/int/pid) + report"
+# git push   <-- HUMAN ONLY (no TTY for creds in agent context)
 ```
-**Credential note:** `git push` has no TTY in non-interactive mode on this host
-(credential store can't prompt) — **the human pushes manually**. Agents commit
-locally only and report hashes.
+Note: `.mat` are LFS pointers; confirm with `git show :<path>/AoI.mat | head -1`
+(should print `version https://git-lfs...`). `.png` under `model/` is gitignored;
+the report/figure live under `results_remote/` (tracked normally).
 
 ---
 
-## 5. TL;DR for a fresh agent
-If you are a fresh agent: read this + `CLAUDE.md` + `RQ1_STABILITY_REPORT.md`
-first, check disk state (markers / report / sentinel), and **do not re-run any
-completed run** — if the stability run was interrupted, use the one-command
-reboot-resume in §3; if it is finished, summarize the verdicts and leave the git
-commit/push to the human.
+## 5. TL;DR
+Read `CLAUDE.md` + this file. Disk survived the reboot; the 6 soft ep600 runs are
+done. Run `resume_ep600.ps1`, let it finish the 12 hard runs + write the report,
+summarize the convergence verdict + 300-vs-600 changes, then COMMIT per §4 and
+report the hash. Do not push, do not recalibrate, do not drop a seed.

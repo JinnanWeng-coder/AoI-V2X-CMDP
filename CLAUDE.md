@@ -1,11 +1,34 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
+> ## ⏯️ RESUME HERE FIRST (state as of 2026-06-03 ~19:10, written before a planned reboot)
+>
+> **An ep600 re-run is IN FLIGHT and will be killed by the reboot. To continue:**
+> ```powershell
+> cd D:\Jinnan\CMDP\AoI-V2X-CMDP ; git pull
+> powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\resume_ep600.ps1
+> ```
+> That one command is **idempotent**: it skips the 6 finished runs (their `.out`
+> markers + `.mat` survive on disk) and re-runs ONLY the 12 missing ones from ep 0,
+> then auto-writes `results_remote/RQ1_EP600_REPORT.md` + `fig_ep600_convergence.png`.
+> Poll `1-ModifiedMADDPGwithTDec/logs/ep600_driver.progress.log`; the host kills
+> detached procs on idle, so re-run the same command whenever the runs go stale
+> (no `python.exe`, `.out` LastWriteTime old). **Do NOT re-run any run whose `.out`
+> already contains `simulation took this much time`.**
+>
+> **ep600 experiment** (t8e10, 600 ep, locked config otherwise unchanged — tau=8
+> eps=0.10 eta_lam=1.0 lam_max=20, PID kp=1 ki=1 kd=0.5, sigma const 0.3): three
+> arms × seeds {2-7} = 18 runs, NEW `_ep600` tags (300-ep runs untouched). WHY:
+> three 300-ep runs (soft-s2-pl2, hard-int-s3-pl0, hard-int-s7-pl0) were
+> under-trained — a cap-bound platoon still descending at ep300. State at reboot:
+> **soft `_base_ep600` s2-7 = 6/6 DONE; `t8e10_ep600` (integral) = 0/6; `t8e10_pid_ep600` = 0/6.**
+> After all 18 finish + the report is written, **commit locally** (see HANDOVER §4
+> for the exact `git add`) and report the hash — **do NOT `git push`**.
+>
 > **CURRENT SINGLE SOURCE OF TRUTH FOR LIVE STATE:
-> [`results_remote/HANDOVER.md`](results_remote/HANDOVER.md)** — read it FIRST.
-> It captures the three experiment batches (6-seed headline; tau/eps phase
-> diagram; the in-flight sigma-anneal + PID stability study), the detached-run
-> mechanics, the reboot-resume command, done-checks, and the unpushed local
-> commits. Do NOT re-run any run whose `.out` already has the completion marker.
+> [`results_remote/HANDOVER.md`](results_remote/HANDOVER.md)** — read it next for the
+> full batch history (stability, PID phase, floor+CI, ep600), all detached-run
+> mechanics, every report, and the unpushed local commits. Do NOT re-run any run
+> whose `.out` already has the completion marker.
 
 > You are picking up an in-progress experiment. This file tells you **what was
 > changed, what to run, what success looks like, and exactly what to do next
