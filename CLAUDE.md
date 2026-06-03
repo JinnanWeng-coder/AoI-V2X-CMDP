@@ -19,8 +19,10 @@
 > eps=0.10 eta_lam=1.0 lam_max=20, PID kp=1 ki=1 kd=0.5, sigma const 0.3): three
 > arms × seeds {2-7} = 18 runs, NEW `_ep600` tags (300-ep runs untouched). WHY:
 > three 300-ep runs (soft-s2-pl2, hard-int-s3-pl0, hard-int-s7-pl0) were
-> under-trained — a cap-bound platoon still descending at ep300. State at reboot:
-> **soft `_base_ep600` s2-7 = 6/6 DONE; `t8e10_ep600` (integral) = 0/6; `t8e10_pid_ep600` = 0/6.**
+> under-trained — a cap-bound platoon still descending at ep300. State at reboot
+> (updated 2026-06-03 ~20:00): **soft `_base_ep600` s2-7 = 6/6 DONE; `t8e10_ep600`
+> (integral) s2-7 = 6/6 DONE; `t8e10_pid_ep600` = 0/6 (wave 3 was in flight at the
+> reboot — `resume_ep600.ps1` reruns ONLY these 6 PID runs).** So 12/18 done on disk.
 > After all 18 finish + the report is written, **commit locally** (see HANDOVER §4
 > for the exact `git add`) and report the hash — **do NOT `git push`**.
 >

@@ -7,8 +7,9 @@
 > creds — commit locally, report hashes, the human pushes). Never recalibrate the
 > locked config; never drop a seed.
 
-**Last updated: 2026-06-03 ~19:10, immediately before a planned reboot that wipes
-the session (but NOT the disk).**
+**Last updated: 2026-06-03 ~20:00 (12/18 ep600 done: soft + integral complete,
+PID in flight), immediately before a planned reboot that wipes the session but NOT
+the disk.**
 
 ---
 
@@ -44,10 +45,11 @@ pl0: …97,76,13; hard-int-s7 pl0: …97,98,54), so their last-100-ep window sit
 mid-transition. Main.py trains from scratch (no resume), so "extend" = re-run at
 600 ep. PID runs were already converged by ep50.
 
-**State at reboot:** soft `_base_ep600` **6/6 DONE**; integral `t8e10_ep600`
-**0/6** (wave 2 was in flight ~ep400 — will be killed, no partial `.mat`, reruns
-fresh); PID `t8e10_pid_ep600` **0/6** (not started). So `resume_ep600.ps1` will
-re-run the 12 hard runs.
+**State at reboot (updated 2026-06-03 ~20:00 — 12/18 done on disk):** soft
+`_base_ep600` **6/6 DONE**; integral `t8e10_ep600` **6/6 DONE**; PID
+`t8e10_pid_ep600` **0/6** (wave 3 was in flight at the reboot — killed, no partial
+`.mat`). So `resume_ep600.ps1` reruns ONLY the **6 PID runs**, then self-writes the
+report.
 
 **ANALYSIS (auto, after all 18 done)** — `analyze_ep600.py` writes
 `RQ1_EP600_REPORT.md`: (1) 50-ep blocked trajectory (12 blocks) of network-mean AoI
