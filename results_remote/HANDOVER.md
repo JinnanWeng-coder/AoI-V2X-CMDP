@@ -7,27 +7,32 @@
 > creds — commit locally, report hashes, the human pushes). Never recalibrate the
 > locked config; never drop a seed.
 
-**Last updated: 2026-06-03 ~20:00 (12/18 ep600 done: soft + integral complete,
-PID in flight), immediately before a planned reboot that wipes the session but NOT
-the disk.**
+**Last updated: 2026-06-04 ~01:15 — ep600 COMPLETE (18/18), report committed.
+Nothing in flight.**
 
 ---
 
-## 0. IMMEDIATE NEXT ACTION — finish the in-flight ep600 re-run
+## 0. STATUS — ep600 re-run COMPLETE (no action needed)
 
-A 600-episode re-run was running when the reboot was scheduled. Disk + `.out`
-markers survive the reboot; the detached processes do not. To continue:
+All 18 ep600 runs finished; `RQ1_EP600_REPORT.md` + `fig_ep600_convergence.png`
+written and committed. Finding: integral sacrificed platoon-seeds 3→1, soft 2→0
+(int-s3/s7 were under-training, now rescued; int-s2-pl2 truly resource-limited
+remains); soft-vs-hard(PID) worst-platoon gap 0.346→0.228, still clearly positive
+(core result holds); PID unchanged. HONEST caveat: 600 ep still INSUFFICIENT for
+soft-s2-pl2 and int-s7-pl0 (still descending at block 12 → true converged violation
+even lower). The RQ1 story is complete across stability / PID phase / floor+CI /
+ep600. Nothing is in flight.
 
+**(Historical) the ep600 re-run was driven by the same detached pattern; if you
+ever need to resume an interrupted batch, the idempotent one-liner is:**
 ```powershell
-cd D:\Jinnan\CMDP\AoI-V2X-CMDP ; git pull
 powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\resume_ep600.ps1
 ```
-
-Idempotent: skips finished runs, re-runs only the missing ones from ep 0, then
-self-writes `RQ1_EP600_REPORT.md` + `fig_ep600_convergence.png`. The host kills
-detached procs on idle — re-run the same command whenever runs go stale (no
-`python.exe`, driver pid gone, `.out` LastWriteTime old). Poll
-`1-ModifiedMADDPGwithTDec/logs/ep600_driver.progress.log`.
+NOTE: the driver's per-wave wait has a 600-min timeout; if a wave is resumed late
+and exceeds it, the driver may exit before the runs finish and skip its self-
+finalize. In that case run `python analyze_ep600.py` manually (from
+`results_remote/`, with `../.venv` python) once all 18 `.out` markers exist — that
+is exactly what happened on the final PID wave and how the report was produced.
 
 **ep600 experiment** (`results_remote/ep600_driver.ps1` / `analyze_ep600.py` /
 `resume_ep600.ps1`): t8e10, `--episodes 600`, locked config otherwise unchanged

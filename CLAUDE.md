@@ -1,30 +1,21 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
-> ## ⏯️ RESUME HERE FIRST (state as of 2026-06-03 ~19:10, written before a planned reboot)
+> ## ✅ ep600 re-run COMPLETE (2026-06-04 ~01:15) — no run in flight
 >
-> **An ep600 re-run is IN FLIGHT and will be killed by the reboot. To continue:**
-> ```powershell
-> cd D:\Jinnan\CMDP\AoI-V2X-CMDP ; git pull
-> powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\resume_ep600.ps1
-> ```
-> That one command is **idempotent**: it skips the 6 finished runs (their `.out`
-> markers + `.mat` survive on disk) and re-runs ONLY the 12 missing ones from ep 0,
-> then auto-writes `results_remote/RQ1_EP600_REPORT.md` + `fig_ep600_convergence.png`.
-> Poll `1-ModifiedMADDPGwithTDec/logs/ep600_driver.progress.log`; the host kills
-> detached procs on idle, so re-run the same command whenever the runs go stale
-> (no `python.exe`, `.out` LastWriteTime old). **Do NOT re-run any run whose `.out`
-> already contains `simulation took this much time`.**
+> All 18 ep600 runs are DONE on disk and `results_remote/RQ1_EP600_REPORT.md` +
+> `fig_ep600_convergence.png` are written & committed. **Finding:** longer training
+> relieves the under-training — integral "sacrificed" platoon-seeds drop 3→1, soft
+> 2→0 (the int-s3/s7 pseudo-sacrifices were under-training, now rescued; only the
+> truly resource-limited int-s2-pl2 remains sacrificed). soft-vs-hard(PID)
+> worst-platoon gap shrinks 0.346→0.228 but stays clearly positive (core RQ1 result
+> holds). PID essentially unchanged (already converged by ep50). HONEST caveat: 600
+> ep is still INSUFFICIENT for soft-s2-pl2 and int-s7-pl0 (still descending at block
+> 12 — their true converged violation is even lower than the 600-ep value).
 >
-> **ep600 experiment** (t8e10, 600 ep, locked config otherwise unchanged — tau=8
-> eps=0.10 eta_lam=1.0 lam_max=20, PID kp=1 ki=1 kd=0.5, sigma const 0.3): three
-> arms × seeds {2-7} = 18 runs, NEW `_ep600` tags (300-ep runs untouched). WHY:
-> three 300-ep runs (soft-s2-pl2, hard-int-s3-pl0, hard-int-s7-pl0) were
-> under-trained — a cap-bound platoon still descending at ep300. State at reboot
-> (updated 2026-06-03 ~20:00): **soft `_base_ep600` s2-7 = 6/6 DONE; `t8e10_ep600`
-> (integral) s2-7 = 6/6 DONE; `t8e10_pid_ep600` = 0/6 (wave 3 was in flight at the
-> reboot — `resume_ep600.ps1` reruns ONLY these 6 PID runs).** So 12/18 done on disk.
-> After all 18 finish + the report is written, **commit locally** (see HANDOVER §4
-> for the exact `git add`) and report the hash — **do NOT `git push`**.
+> **No next action required for ep600.** If a future agent wants to push further,
+> the previously-flagged platoons argue for >600 ep; otherwise the RQ1 story is
+> complete across stability / PID phase / floor+CI / ep600. There is nothing in
+> flight; the detached-driver + `resume_*.ps1` pattern is reusable for new batches.
 >
 > **CURRENT SINGLE SOURCE OF TRUTH FOR LIVE STATE:
 > [`results_remote/HANDOVER.md`](results_remote/HANDOVER.md)** — read it next for the
