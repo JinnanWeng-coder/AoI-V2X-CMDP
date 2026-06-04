@@ -66,6 +66,16 @@ parser.add_argument('--dual', choices=['integral', 'pid'], default='integral',
 parser.add_argument('--kp', type=float, default=1.0, help='[RQ1-CMDP] PID proportional gain')
 parser.add_argument('--ki', type=float, default=1.0, help='[RQ1-CMDP] PID integral gain')
 parser.add_argument('--kd', type=float, default=0.5, help='[RQ1-CMDP] PID derivative gain')
+# [RQ1-CMDP #3] multiplier GRANULARITY ablation (control arm for the per-platoon claim).
+#   per_platoon : each platoon j gets its own lambda_j driven by its own violation (ours).
+#   global_mean : ONE shared lambda driven by the network-MEAN violation (replays the
+#                 soft baseline's failure mode: average looks fine, worst platoon starves).
+#   global_max  : ONE shared lambda driven by the WORST per-platoon violation (protects the
+#                 worst but over-prices every platoon -> wastes power on the easy ones).
+#   default 'per_platoon' is numerically IDENTICAL to the original update.
+parser.add_argument('--lam_scope', choices=['per_platoon', 'global_mean', 'global_max'],
+                    default='per_platoon',
+                    help='[RQ1-CMDP #3] Lagrange-multiplier granularity (default per_platoon = current behaviour)')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -395,18 +405,31 @@ if IS_TRAIN:
         # Two-timescale dual ascent (slow loop): raise lambda_j when platoon j
         # exceeds its target violation probability, lower it otherwise.
         if CONSTRAINT_MODE == 'hard':
+            # [RQ1-CMDP #3] error signal that drives the dual ascent.
+            #   per_platoon : each platoon j uses its OWN violation error (ours).
+            #   global_mean : ONE shared error = network-mean violation - eps.
+            #   global_max  : ONE shared error = worst-platoon violation - eps.
+            # global_* broadcast the SAME error to every j, so all lambda_j stay
+            # identical -> effectively a single global multiplier. The default
+            # 'per_platoon' branch is numerically IDENTICAL to the original law.
+            if args.lam_scope == 'per_platoon':
+                e_vec = viol_rate - env.eps_viol
+            elif args.lam_scope == 'global_mean':
+                e_vec = np.full(n_platoon, float(np.mean(viol_rate)) - env.eps_viol)
+            else:  # global_max
+                e_vec = np.full(n_platoon, float(np.max(viol_rate)) - env.eps_viol)
             if args.dual == 'integral':
-                # original pure-integral law (UNCHANGED -- byte-for-byte path).
+                # original pure-integral law (per_platoon path is byte-for-byte).
                 for j in range(n_platoon):
-                    new_lam = agents[j].lam + args.eta_lam * (viol_rate[j] - env.eps_viol)
+                    new_lam = agents[j].lam + args.eta_lam * e_vec[j]
                     agents[j].lam = float(np.clip(new_lam, 0.0, args.lam_max))
             else:
-                # [RQ1-CMDP] PID-Lagrangian (Stooke 2020) on e=(viol_rate_j - eps).
+                # [RQ1-CMDP] PID-Lagrangian (Stooke 2020) on e=(error_j).
                 #   I_j   <- clip(I_j + ki*e, 0, lam_max)            (integral)
                 #   lam_j  = clip(kp*e + I_j + kd*(e - e_prev), 0, lam_max)
                 # With kp=kd=0, ki=eta_lam this reduces to the integral law above.
                 for j in range(n_platoon):
-                    e = viol_rate[j] - env.eps_viol
+                    e = e_vec[j]
                     lam_I[j] = float(np.clip(lam_I[j] + args.ki * e, 0.0, args.lam_max))
                     deriv = e - lam_err_prev[j]
                     lam_pid = args.kp * e + lam_I[j] + args.kd * deriv
