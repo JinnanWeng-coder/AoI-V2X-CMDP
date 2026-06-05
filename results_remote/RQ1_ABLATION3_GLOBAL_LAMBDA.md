@@ -55,5 +55,5 @@ max |lambda_j - lambda_k| over ALL episodes & platoon pairs (0.0 => a single glo
 
 ## 3. Reproduce
 ```
-python analyze_ablation3.py
+python results_remote/scripts/analyze_ablation3.py
 ```
