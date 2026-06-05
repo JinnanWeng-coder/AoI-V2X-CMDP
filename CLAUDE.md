@@ -1,33 +1,60 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
-> ## ✅ ep600 re-run COMPLETE (2026-06-04 ~01:15) — no run in flight
+> ## ✅ RQ1 EXPERIMENTAL CAMPAIGN COMPLETE (2026-06-04) — nothing in flight
 >
-> All 18 ep600 runs are DONE on disk and `results_remote/RQ1_EP600_REPORT.md` +
-> `fig_ep600_convergence.png` are written & committed. **Finding:** longer training
-> relieves the under-training — integral "sacrificed" platoon-seeds drop 3→1, soft
-> 2→0 (the int-s3/s7 pseudo-sacrifices were under-training, now rescued; only the
-> truly resource-limited int-s2-pl2 remains sacrificed). soft-vs-hard(PID)
-> worst-platoon gap shrinks 0.346→0.228 but stays clearly positive (core RQ1 result
-> holds). PID essentially unchanged (already converged by ep50). HONEST caveat: 600
-> ep is still INSUFFICIENT for soft-s2-pl2 and int-s7-pl0 (still descending at block
-> 12 — their true converged violation is even lower than the 600-ep value).
+> Terminology: **platoon = a convoy of vehicles (1 leader + followers); NOT a
+> software "platform".** Throughout, "per-platoon" means per-convoy.
 >
-> **No next action required for ep600.** If a future agent wants to push further,
-> the previously-flagged platoons argue for >600 ep; otherwise the RQ1 story is
-> complete across stability / PID phase / floor+CI / ep600. There is nothing in
-> flight; the detached-driver + `resume_*.ps1` pattern is reusable for new batches.
+> The full RQ1 campaign is done and on disk: **151 training runs** (139 + the 12
+> ablation #3 global-λ runs) under `1-ModifiedMADDPGwithTDec/model/`, seven analysis
+> reports + figures under `results_remote/`, and five manuscript "claim figures" under
+> `../Manuscript/figures/`. All `.mat` are tracked via **Git LFS** (a fresh clone
+> needs `git lfs install` then `git lfs pull` to get real data, not pointers).
 >
-> **CURRENT SINGLE SOURCE OF TRUTH FOR LIVE STATE:
-> [`results_remote/HANDOVER.md`](results_remote/HANDOVER.md)** — read it next for the
-> full batch history (stability, PID phase, floor+CI, ep600), all detached-run
-> mechanics, every report, and the unpushed local commits. Do NOT re-run any run
-> whose `.out` already has the completion marker.
+> **Six settled findings (each verified against raw `.mat`):**
+> 1. SOFT (network-average / soft-penalty AoI) hides a starved platoon: network-mean
+>    violation ≈0.18 while the worst platoon sits 0.35–0.49 (≫ ε=0.10).
+> 2. HARD per-platoon CMDP (cost critic + per-platoon λ) protects the worst platoon:
+>    worst-platoon violation reduction soft→PID = **0.228 ± 0.094** (n=6, ep600).
+> 3. The guarantee is **not free but cheap** on converged PID data: violation −47%,
+>    mean AoI −19%, **transmit power +25%**, V2V demand ≈−1% (feasible n=30, ep600).
+>    (NOTE: an earlier "+62% power / +74% V2V" figure came from the INTEGRAL-dual /
+>    300-ep data and is SUPERSEDED — use the PID/ep600 numbers.)
+> 4. PID-Lagrangian damps the integral dual's limit-cycle: worst-platoon violation
+>    late-std 0.175→0.097, strongest on the genuinely cycling seeds (s3, s7);
+>    limit-cycling is NOT universal across seeds.
+> 5. There is **NO truly resource-limited platoon** in this 3-RB/5-platoon scenario.
+>    The 300-ep "3/30 sacrificed" platoons were UNDER-TRAINING + integral-dual
+>    artifacts: ep600 rescues 2 of 3, and the seed2 1000-ep test rescues the last
+>    one (soft viol→0.079, PID λ comes off the cap 20→3.6). ⇒ the "infeasibility
+>    frontier" is really a **trainability/dual-stability frontier**, and the
+>    `--aoi_floor` safeguard is NOT needed here (and back-fires under PID).
+> 6. **Per-platoon granularity is NECESSARY** (ablation #3, `--lam_scope`): replacing
+>    per-platoon λ_j with a SINGLE global multiplier — driven by the network-mean
+>    (global_mean) OR the worst platoon (global_max) — FAILS to protect the worst
+>    platoon (pooled worst-platoon violation ≈0.33 for both, ≈ soft's 0.354, std ~0.34),
+>    while per-platoon λ_j holds it at **0.126 ± 0.024**. global_max also burns ~2×
+>    transmit power (18.9 vs 9.9 dBm) and STILL fails; the global arms lower the network
+>    MEAN (~0.12) but abandon the worst platoon. per-platoon wins on 5/6 seeds (seed7
+>    has no starved platoon, so granularity is moot). Backs the "per-platoon" title
+>    claim. See `results_remote/RQ1_ABLATION3_GLOBAL_LAMBDA.md`,
+>    `../Manuscript/figures/fig_claim5_per_platoon_necessity.png`,
+>    `../Manuscript/data/per_platoon_necessity_table.md`.
+>
+> **Reduced/retired claims:** "infeasibility frontier" (→ trainability frontier);
+> `--aoi_floor` safeguard (unneeded, harmful under PID); "PID beats integral on
+> #pass" (CI overlap at n=10 — PID's real win is sacrifice-count + limit-cycle
+> removal); the +62%/+74% cost numbers (superseded by PID/ep600).
+>
+> **Live-state companion:** [`results_remote/HANDOVER.md`](results_remote/HANDOVER.md)
+> has the batch-by-batch run history and detached-driver mechanics. Nothing is in
+> flight. Do NOT re-run any run whose `.out` already has the completion marker.
+> The exact data→claim map and the independent re-verification protocol are in
+> §9–§11 below.
 
-> You are picking up an in-progress experiment. This file tells you **what was
-> changed, what to run, what success looks like, and exactly what to do next
-> whether it fails or succeeds.** A companion design log lives one level up at
-> `../RQ1_CMDP_IMPLEMENTATION.md` (deeper rationale + line-level diff). Read
-> this file fully before touching code.
+> Design/implementation companion (line-level diff + rationale):
+> `../RQ1_CMDP_IMPLEMENTATION.md`. The mechanism, base-version state, and "how to
+> run / failure tree" are unchanged and kept in §0–§8 below for reference.
 
 ---
 
@@ -247,3 +274,111 @@ is itself a valid (if disappointing) RQ1 finding.
 - **Seeds:** `--seed` controls all RNGs. Use the same seed set for soft and
   hard so the comparison is paired.
 - Full design rationale and the exact line-level diff: `../RQ1_CMDP_IMPLEMENTATION.md`.
+
+---
+
+## 9. Experiment inventory — what is under `model/` and under what conditions
+
+Run-dir naming: `marl_model_<mode>_seed<N>_<tag>`.
+`<mode>` = `soft` (AoI as −AoI/20 reward penalty, baseline) or `hard` (per-platoon
+CMDP). `<tag>` encodes (τ,ε) and variant: `t{τ}e{100·ε}` (e.g. `t8e10` = τ=8, ε=0.10),
+optionally suffixed `_pid` (PID-Lagrangian dual instead of pure integral),
+`_anneal` (σ exploration annealed 0.3→0.05), `_floor` (--aoi_floor 0.005),
+`_ep600` / `_ep1000` (longer horizon), `_glmean` / `_glmax` (ablation #3: single
+global λ driven by network-mean / worst violation, `--lam_scope`). No suffix on a hard run = integral dual,
+300 ep. soft tag is always `_base`. **Locked config unless a tag says otherwise:**
+episodes=300, τ=8, ε=0.10, η_λ=1.0, λ_max=20, PID kp=ki=1.0 kd=0.5, σ=0.3 const,
+scenario 5 platoons × 4 veh × 3 RB. Every run dir holds 12 `.mat`
+(AoI, AoI_evolution, viol_rate, lambda, power, demand, V2I, V2V, Jain, reward_t1/t2/global).
+
+| run-class (tag) | seeds | conditions | which batch / what it tests |
+|---|---|---|---|
+| `soft_seedN_base` | 2–11 | 300 ep, soft baseline | headline + n=10 CI; the comparison baseline |
+| `hard_seedN_t8e10` | 2–11 | 300 ep, integral dual, τ8/ε.10 | headline hard arm; n=10 CI; limit-cycle source |
+| `hard_seedN_t8e10_pid` | 2–11 | 300 ep, PID dual | headline PID arm; n=10 CI |
+| `hard_seedN_t{8,10,12}e{10,15}` | 2–7 | 300 ep, integral | τ/ε phase diagram (integral) |
+| `hard_seedN_t{8,10,12}e{10,15}_pid` | 2–7 | 300 ep, PID | τ/ε phase diagram (PID) — frontier re-judged |
+| `hard_seedN_t8e10_anneal` | 2–7 | 300 ep, σ-anneal | stability ablation arm B (σ-anneal — rejected) |
+| `hard_seedN_t8e10_floor` | 2,3,4 | 300 ep, integral + floor | feasibility safeguard under integral |
+| `hard_seedN_t8e10_pid_floor` | 2,3,4 | 300 ep, PID + floor | safeguard under PID (back-fires → retired) |
+| `soft_seedN_base_ep600`, `hard_seedN_t8e10_ep600`, `hard_seedN_t8e10_pid_ep600` | 2–7 | **600 ep** | convergence re-run (three arms); the **canonical converged data** for claims 1–3 |
+| `soft_seed2_base_ep1000`, `hard_seed2_t8e10_ep1000`, `hard_seed2_t8e10_pid_ep1000` | 2 | **1000 ep** | seed2-pl2 infeasibility test (claim 5: it's under-trained, not infeasible) |
+| `hard_seedN_t8e10_pid_ep600_glmean`, `..._glmax` | 2–7 | **600 ep**, PID, single global λ | ablation #3 (claim 6): per-platoon vs global multiplier — `--lam_scope` |
+
+(There is also a stray `marl_model_<...>` early-test dir or two; ignore anything
+not matching the table.)
+
+**Which data backs which claim (canonical = ep600 t8e10 three-arm, seeds 2–7):**
+- Claim 1 (soft hides starvation): `soft_*_base_ep600`.
+- Claim 2 (protection): `soft_*_base_ep600` vs `hard_*_t8e10_pid_ep600`.
+- Claim 3 (cost): same pair as Claim 2.
+- Claim 4 (PID vs limit-cycle): `hard_*_t8e10` (integral) vs `hard_*_t8e10_pid`, **300 ep**
+  (limit-cycle is a 300-ep phenomenon; ep600 mostly converges it away).
+- Claim 5 (no true infeasibility): the three `*_ep1000` seed2 runs (+ ep600 context).
+- Claim 6 (per-platoon necessity): `hard_*_t8e10_pid_ep600` (per-platoon) vs the
+  `..._glmean` / `..._glmax` global arms, with `soft_*_base_ep600` for context.
+
+---
+
+## 10. `results_remote/` — what each file proves
+
+Seven reports, each auto-generated by a detached driver then committed; all numbers in
+them were cross-checked against raw `.mat` by the supervising agent.
+
+| file | batch / condition | what it establishes |
+|---|---|---|
+| `RQ1_REMOTE_REPORT.md` | headline + integral τ/ε phase + floor + multi-metric, 6 seeds, 300 ep | first end-to-end soft-vs-hard story (integral-era; some numbers later superseded) |
+| `RQ1_STABILITY_REPORT.md` | σ-anneal vs PID vs baseline, t8e10, 6 seeds | PID dominates integral (sacrificed 3→0, λ-std down, cheaper); σ-anneal rejected |
+| `RQ1_PHASE_PID_REPORT.md` | PID τ/ε phase diagram, 6 seeds | frontier under PID: SOFTENED not overturned (grid sacrifices integral 6 → PID 1) |
+| `RQ1_FLOOR_AND_CI_REPORT.md` | PID+floor (n=3) and n=10 CI on 3 cells | floor back-fires under PID; n=10 — soft-vs-PID gap holds; PID-#pass advantage weakens (CI overlap) |
+| `RQ1_EP600_REPORT.md` | 600-ep re-run, three arms | under-training relief: integral sacrificed 3→1, gap 0.346→0.228 (still +); 600 still insufficient for 2 platoons |
+| `RQ1_SEED2_INFEAS_REPORT.md` | seed2 1000-ep, three arms | seed2-pl2 is under-trained NOT infeasible (PID λ off the cap; soft viol→0.079) → no true-infeasible platoon |
+| `RQ1_ABLATION3_GLOBAL_LAMBDA.md` | per-platoon vs global λ (glmean/glmax), 6 seeds, ep600 | claim 6: a single global multiplier (mean- or max-driven) fails to protect the worst platoon; per-platoon is necessary (`--lam_scope`) |
+| `HANDOVER.md` | — | live-state log: batch history, detached-driver mechanics, commit list |
+
+Figures in `results_remote/` (`fig_*.png`) are the per-batch figures; the **five
+manuscript-grade claim figures** live separately in `../Manuscript/figures/`
+(`fig_claim1..5_*.png`, regenerable via `../Manuscript/make_claim_figures.py`;
+fig_claim5 via `../Manuscript/make_claim5_figure.py`).
+
+---
+
+## 11. Independent re-verification protocol (for an auditing agent)
+
+Goal: confirm Claims 1–4 and 6 and that `Manuscript/figures/fig_claim*.png` are
+faithful — using the raw `.mat` directly, NOT by trusting the reports.
+
+Setup: `git lfs install && git lfs pull` (else `.mat` are pointers). Use a Python
+with scipy + numpy<1.24 + matplotlib. Violation of a run = read its
+`AoI_evolution.mat` (shape 5×100×100 = platoon × last-100-ep × step) and compute
+`P(AoI>τ) = (AoI_evolution > 8).mean(axis=(1,2))` → one value per platoon (τ=8).
+
+Check each claim (canonical data: ep600 t8e10 three-arm, seeds 2–7 = 30 platoon-seed pairs):
+- **Claim 1** — for each `soft_*_base_ep600`: network-mean violation = mean over 5
+  platoons; worst = max over 5. Expect mean ≈0.18, worst 0.35–0.49 (worst ≫ ε). →
+  reproduces `fig_claim1_average_hides.png` (grey=mean, red=worst, per seed).
+- **Claim 2** — pool the 5 per-platoon violations of all 6 seeds into 30 values for
+  soft and for PID; sort by soft. Expect soft fans out to ~0.49, PID compressed near
+  ε. Per-seed worst-platoon gap = soft.max − pid.max; mean over 6 seeds ≈ **0.228 ±
+  0.094** (t-interval). → reproduces `fig_claim2_protection.png`.
+- **Claim 3** — keep the 30 pairs where PID violation < 0.5 (all 30 qualify); for
+  soft and PID compute mean±CI of: violation (from AoI_evolution), mean AoI
+  (`AoI.mat[:, -100:].mean`), power (`power.mat`.mean), remaining V2V demand
+  (`demand.mat`.mean). Expect ≈ violation −47%, AoI −19%, power +25%, demand ≈−1%.
+  → reproduces `fig_claim3_cost.png`. (The "feasible n=30, SAC=0.5" wording just
+  means "no run was excluded as sacrificed".)
+- **Claim 4** — use the **300-ep** `hard_*_t8e10` vs `hard_*_t8e10_pid`. For each,
+  take the worst platoon's per-episode `viol_rate.mat` row; its last-100-ep std is
+  the limit-cycle amplitude. Expect mean integral ≈0.175 vs PID ≈0.097, with the
+  gap concentrated on seeds 3 and 7. → reproduces `fig_claim4_pid_stability.png`.
+- **Claim 6** — for `hard_*_t8e10_pid_ep600` (per-platoon) vs `..._glmean` / `..._glmax`:
+  worst-platoon final viol = `viol_rate.mat[:, -100:].mean(axis=1).max()`; mean power =
+  `power.mat.mean()`. Expect per-platoon worst ≈0.126±0.024 vs both global ≈0.33 (≈soft),
+  and global_max power ≈18.9 vs per-platoon ≈9.9 dBm. Sanity: each global run's
+  `lambda.mat` rows are identical across platoons (a single shared λ). → reproduces
+  `fig_claim5_per_platoon_necessity.png` (regen via `Manuscript/make_claim5_figure.py`).
+
+Each claim figure is generated by `Manuscript/make_claim_figures.py`; re-running it
+must reproduce the committed PNGs. Report any number that does NOT match the figure
+or the §0 summary — discrepancies are the whole point of the audit. Honest negative
+findings (a claim weaker than stated) must be reported, not smoothed over.

@@ -10,6 +10,17 @@
 **Last updated: 2026-06-04 ~01:15 — ep600 COMPLETE (18/18), report committed.
 Nothing in flight.**
 
+> ⚠️ **This file is a CHRONOLOGICAL BATCH LOG, not current manuscript guidance.**
+> Early rows (e.g. the integral/300-ep batch) report numbers that were later
+> SUPERSEDED — e.g. "~1.6× power / 3 structurally-infeasible / floor bounds an
+> unservable platoon" are NOT the final findings. For canonical numbers and what to
+> write, use `../../Manuscript/README_FOR_WRITING.md` and
+> `../../Manuscript/data/feasible_cost_table.md`. Final state: cost is ~+25% power /
+> ≈0 V2V (PID/ep600); **no structurally-infeasible platoon exists** (seed2-pl2 was
+> under-trained — see `RQ1_SEED2_INFEAS_REPORT.md`); the `--aoi_floor` safeguard is
+> retired (back-fires under PID). Read the rows below as "what we believed at each
+> step", not as the conclusion.
+
 ---
 
 ## 0. STATUS — ep600 re-run COMPLETE (no action needed)
