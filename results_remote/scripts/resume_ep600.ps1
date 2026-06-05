@@ -8,7 +8,7 @@
 # =====================================================================
 $ErrorActionPreference = 'Stop'
 $HERE = $PSScriptRoot
-$REPO = Split-Path -Parent $HERE
+$REPO = Split-Path -Parent (Split-Path -Parent $HERE)
 $LOG  = Join-Path $REPO "1-ModifiedMADDPGwithTDec\logs"
 New-Item -ItemType Directory -Force $LOG | Out-Null
 $boot = Join-Path $LOG "ep600_driver.boot.log"

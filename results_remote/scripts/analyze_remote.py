@@ -28,7 +28,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 MODEL_DIR = os.path.join(HERE, "..", "1-ModifiedMADDPGwithTDec", "model")
 OUT = HERE
 V2I_MIN = 540.0   # minimum V2I rate (3 bps/Hz * B.W * time_fast) -> "success" if >=

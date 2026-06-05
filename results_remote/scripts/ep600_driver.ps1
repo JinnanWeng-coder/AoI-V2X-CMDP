@@ -26,7 +26,7 @@ $MAXCONC = 6
 $POLL_SEC = 30
 $WAVE_TIMEOUT_MIN = 600
 
-$REPO = Split-Path -Parent $PSScriptRoot
+$REPO = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $PY   = Join-Path $REPO ".venv\Scripts\python.exe"
 $WD   = Join-Path $REPO "1-ModifiedMADDPGwithTDec"
 $LOG  = Join-Path $WD "logs"

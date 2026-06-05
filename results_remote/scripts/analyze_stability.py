@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 
 from analyze_remote import folder, _load, metrics, ci95
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 OUT = HERE
 EPS = 0.10
 LAM_MAX = 20.0

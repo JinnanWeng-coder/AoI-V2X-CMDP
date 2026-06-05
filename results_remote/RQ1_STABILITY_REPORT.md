@@ -92,6 +92,6 @@ These are the same on-floor (3-RB / 5-platoon) victims as the headline report; t
 
 ```
 # from results_remote/, with ../.venv python
-python analyze_stability.py --seeds 2 3 4 5 6 7 --tau 8   # console detail
-python finalize_stability.py --seeds 2 3 4 5 6 7 --tau 8  # this report + figs
+python scripts/analyze_stability.py --seeds 2 3 4 5 6 7 --tau 8   # console detail
+python scripts/finalize_stability.py --seeds 2 3 4 5 6 7 --tau 8  # this report + figs
 ```

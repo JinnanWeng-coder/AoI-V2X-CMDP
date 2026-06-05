@@ -13,7 +13,7 @@ import re
 import numpy as np
 import analyze_remote as A
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 REPORT = os.path.join(HERE, "RQ1_REMOTE_REPORT.md")
 SEEDS = [2, 3, 4, 5, 6, 7]
 TAUS = [8, 10, 12]

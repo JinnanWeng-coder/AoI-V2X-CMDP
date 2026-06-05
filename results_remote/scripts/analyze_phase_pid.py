@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 from analyze_remote import metrics, ci95, folder
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 OUT = HERE
 REPORT = os.path.join(HERE, "RQ1_PHASE_PID_REPORT.md")
 LAM_MAX = 20.0

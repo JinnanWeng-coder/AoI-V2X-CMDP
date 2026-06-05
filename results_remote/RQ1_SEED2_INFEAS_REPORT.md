@@ -48,5 +48,5 @@ See `fig_seed2_infeas.png`. Tail blocks (b16..b20) and verdict per arm:
 
 ## 6. Reproduce
 ```
-python analyze_seed2.py
+python results_remote/scripts/analyze_seed2.py
 ```

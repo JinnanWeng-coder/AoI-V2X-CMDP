@@ -1,5 +1,5 @@
 # [RQ1-CMDP] Poll all run logs: show last episode reached + done flag + timing.
-$WD  = Join-Path (Split-Path -Parent $PSScriptRoot) "1-ModifiedMADDPGwithTDec"
+$WD  = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "1-ModifiedMADDPGwithTDec"
 $LOG = Join-Path $WD "logs"
 $now = Get-Date
 Write-Output ("=== status @ {0:HH:mm:ss} ===" -f $now)

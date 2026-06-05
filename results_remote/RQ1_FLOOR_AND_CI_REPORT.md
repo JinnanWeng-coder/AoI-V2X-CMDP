@@ -118,5 +118,5 @@ Per seed: soft worst-platoon P(AoI>tau) minus hard-PID worst-platoon P(AoI>tau);
 
 ## Reproduce
 ```
-python analyze_floor_ci.py
+python results_remote/scripts/analyze_floor_ci.py
 ```

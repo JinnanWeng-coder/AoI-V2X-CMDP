@@ -26,11 +26,11 @@ ep600. Nothing is in flight.
 **(Historical) the ep600 re-run was driven by the same detached pattern; if you
 ever need to resume an interrupted batch, the idempotent one-liner is:**
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\resume_ep600.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\scripts\resume_ep600.ps1
 ```
 NOTE: the driver's per-wave wait has a 600-min timeout; if a wave is resumed late
 and exceeds it, the driver may exit before the runs finish and skip its self-
-finalize. In that case run `python analyze_ep600.py` manually (from
+finalize. In that case run `python scripts/analyze_ep600.py` manually (from
 `results_remote/`, with `../.venv` python) once all 18 `.out` markers exist — that
 is exactly what happened on the final PID wave and how the report was produced.
 

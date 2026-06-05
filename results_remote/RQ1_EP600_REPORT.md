@@ -75,5 +75,5 @@ Motivation: three 300-ep runs (soft-s2, hard-int-s3, hard-int-s7) were under-tra
 
 ## 6. Reproduce
 ```
-python analyze_ep600.py
+python results_remote/scripts/analyze_ep600.py
 ```

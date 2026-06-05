@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 from analyze_remote import metrics, folder, _load
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 REPORT = os.path.join(HERE, "RQ1_SEED2_INFEAS_REPORT.md")
 SEED = 2
 PL = 2

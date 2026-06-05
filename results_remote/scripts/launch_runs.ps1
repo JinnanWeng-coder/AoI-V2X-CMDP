@@ -16,7 +16,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$REPO = Split-Path -Parent $PSScriptRoot      # repo root (results_remote is under it)
+$REPO = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)      # repo root (results_remote is under it)
 $PY  = Join-Path $REPO ".venv\Scripts\python.exe"
 $WD  = Join-Path $REPO "1-ModifiedMADDPGwithTDec"
 $LOG = Join-Path $WD "logs"

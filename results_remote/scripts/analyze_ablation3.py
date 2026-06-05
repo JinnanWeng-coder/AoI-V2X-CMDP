@@ -22,7 +22,7 @@ import sys
 import numpy as np
 from analyze_remote import metrics, folder, _load
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 REPORT = os.path.join(HERE, "RQ1_ABLATION3_GLOBAL_LAMBDA.md")
 SEEDS = [2, 3, 4, 5, 6, 7]
 TAU = 8

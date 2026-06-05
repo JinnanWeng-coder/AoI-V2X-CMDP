@@ -21,7 +21,7 @@ import numpy as np
 from analyze_stability import (per_seed, ARMS, ci95, make_figures, EPS, HAIR,
                                LAM_MAX, ACTIVE_LO, ACTIVE_HI, INFEAS)
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 REPORT = os.path.join(HERE, "RQ1_STABILITY_REPORT.md")
 
 

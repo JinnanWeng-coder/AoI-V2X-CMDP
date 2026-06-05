@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 $POLL_SEC = 30
 $WAIT_TIMEOUT_MIN = 480
 
-$REPO = Split-Path -Parent $PSScriptRoot
+$REPO = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $PY   = Join-Path $REPO ".venv\Scripts\python.exe"
 $RR   = Join-Path $REPO "results_remote"
 $LOG  = Join-Path $REPO "1-ModifiedMADDPGwithTDec\logs"
@@ -52,10 +52,10 @@ if ($done -ne $need.Count) { Say "TIMEOUT: only $done/$($need.Count) markers —
 
 # 1) refresh the seed-2..7 figures (headline/cost/lambda use t8e10 s2-7; floor uses s2,3,4)
 Say "running make_figures.py --seeds 2 3 4 5 6 7 --grid_seeds 2 3 4"
-& $PY (Join-Path $RR "make_figures.py") --seeds 2 3 4 5 6 7 --grid_seeds 2 3 4 *>> (Join-Path $LOG "finalize.out")
+& $PY (Join-Path $PSScriptRoot "make_figures.py") --seeds 2 3 4 5 6 7 --grid_seeds 2 3 4 *>> (Join-Path $LOG "finalize.out")
 
 # 2) regenerate fig_phase_diagram.png (6 seeds) + splice the 6-seed CI table into the report
 Say "running finalize_report.py (phase analysis + report splice)"
-& $PY (Join-Path $RR "finalize_report.py") *>> (Join-Path $LOG "finalize.out")
+& $PY (Join-Path $PSScriptRoot "finalize_report.py") *>> (Join-Path $LOG "finalize.out")
 
 Say "================ FINALIZE COMPLETE ================ (no git commit/push — left to operator)"

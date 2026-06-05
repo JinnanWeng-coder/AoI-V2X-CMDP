@@ -26,7 +26,7 @@ $KP = 1.0; $KI = 1.0; $KD = 0.5
 $POLL_SEC = 30
 $WAVE_TIMEOUT_MIN = 1440
 
-$REPO = Split-Path -Parent $PSScriptRoot
+$REPO = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $PY   = Join-Path $REPO ".venv\Scripts\python.exe"
 $WD   = Join-Path $REPO "1-ModifiedMADDPGwithTDec"
 $LOG  = Join-Path $WD "logs"

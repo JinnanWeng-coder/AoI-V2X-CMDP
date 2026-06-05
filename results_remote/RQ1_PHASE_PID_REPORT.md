@@ -47,5 +47,5 @@ Reading: if viol falls and lambda comes OFF saturation as tau loosens, the plato
 
 ```
 # from results_remote/, with ../.venv python
-python analyze_phase_pid.py --seeds 2 3 4 5 6 7
+python scripts/analyze_phase_pid.py --seeds 2 3 4 5 6 7
 ```

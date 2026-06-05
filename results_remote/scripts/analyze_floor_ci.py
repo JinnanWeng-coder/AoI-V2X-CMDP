@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 from analyze_remote import metrics, folder
 
-HERE = os.path.dirname(os.path.realpath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 REPORT = os.path.join(HERE, "RQ1_FLOOR_AND_CI_REPORT.md")
 EPS = 0.10
 LAM_MAX = 20.0

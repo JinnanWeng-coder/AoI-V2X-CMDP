@@ -191,9 +191,9 @@ guarantee is bought with energy and V2V headroom, not granted for free.
 ### Reproduce
 ```
 # from results_remote/, with ../.venv python
-python analyze_remote.py softsweep --seeds 2 3 4 5 6 7 --taus 6 8 10 12
-python analyze_remote.py phase     --seeds 2 3 4 5 6 7 --taus 8 10 12 --epses 0.10 0.15
-python analyze_remote.py metrics   --seeds 2 3 4 5 6 7 --tau 8 --eps 0.10
-python analyze_remote.py floor     --seeds 2 3 4 --tau 8 --eps 0.10
-python make_figures.py --seeds 2 3 4 5 6 7 --grid_seeds 2 3 4
+python scripts/analyze_remote.py softsweep --seeds 2 3 4 5 6 7 --taus 6 8 10 12
+python scripts/analyze_remote.py phase     --seeds 2 3 4 5 6 7 --taus 8 10 12 --epses 0.10 0.15
+python scripts/analyze_remote.py metrics   --seeds 2 3 4 5 6 7 --tau 8 --eps 0.10
+python scripts/analyze_remote.py floor     --seeds 2 3 4 --tau 8 --eps 0.10
+python scripts/make_figures.py --seeds 2 3 4 5 6 7 --grid_seeds 2 3 4
 ```
