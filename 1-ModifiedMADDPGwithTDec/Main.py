@@ -76,6 +76,15 @@ parser.add_argument('--kd', type=float, default=0.5, help='[RQ1-CMDP] PID deriva
 parser.add_argument('--lam_scope', choices=['per_platoon', 'global_mean', 'global_max'],
                     default='per_platoon',
                     help='[RQ1-CMDP #3] Lagrange-multiplier granularity (default per_platoon = current behaviour)')
+# [RQ1-CMDP #4] soft-penalty SHAPE ablation (Qu-style fixed-weight threshold arm).
+#   --aoi_pen_type raw       : original -AoI/20 penalty (default; byte-for-byte unchanged).
+#   --aoi_pen_type indicator : fixed-weight threshold penalty -aoi_pen_w*1{AoI>tau} -- same
+#     threshold signal as the hard constraint, but a FIXED weight and NO dual. Use with
+#     --mode soft to get the "penalty, not constraint" control arm.
+parser.add_argument('--aoi_pen_type', choices=['raw', 'indicator'], default='raw',
+                    help='[RQ1-CMDP #4] soft AoI penalty shape (default raw = current behaviour)')
+parser.add_argument('--aoi_pen_w', type=float, default=5.0,
+                    help='[RQ1-CMDP #4] fixed weight for the indicator penalty (only used when aoi_pen_type=indicator)')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -187,6 +196,8 @@ env.eps_viol = args.eps
 # In 'hard' mode AoI is a constraint, so the soft reward penalty is switched off;
 # in 'soft' mode it keeps the original 1/20 weight.
 env.aoi_penalty_coef = args.aoi_floor if CONSTRAINT_MODE == 'hard' else (1.0 / 20)
+env.aoi_pen_type = args.aoi_pen_type        # [RQ1-CMDP #4] soft-penalty shape
+env.aoi_pen_w = args.aoi_pen_w              # [RQ1-CMDP #4] fixed indicator weight
 
 n_episode = args.episodes
 n_step_per_episode = int(env.time_slow / env.time_fast)

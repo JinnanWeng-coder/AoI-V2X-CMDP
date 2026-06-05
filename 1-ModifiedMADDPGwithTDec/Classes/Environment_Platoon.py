@@ -118,6 +118,11 @@ class Environ:
         self.tau_aoi = 8.0          # AoI threshold (slots); violation if AoI > tau
         self.eps_viol = 0.10        # target violation probability epsilon
         self.aoi_penalty_coef = 1.0 / 20   # soft AoI penalty weight (set 0 in hard mode)
+        # [RQ1-CMDP #4] soft-penalty SHAPE: 'raw' = original -AoI*coef (penalise AoI size);
+        #   'indicator' = Qu-style fixed-weight threshold penalty -aoi_pen_w*1{AoI>tau}
+        #   (same threshold signal as the hard constraint, but a FIXED weight, no dual).
+        self.aoi_pen_type = 'raw'
+        self.aoi_pen_w = 0.0
         self.gap = Gap
         self.v_length = 0
 
@@ -523,16 +528,25 @@ class Environ:
 
         for i in range(int(self.n_Veh / self.size_platoon)):
 
+            # [RQ1-CMDP #4] AoI reward-penalty shape: 'raw' = -AoI*coef (original);
+            #   'indicator' = fixed-weight threshold penalty -aoi_pen_w*1{AoI>tau} (Qu-style,
+            #   same signal as the hard constraint but a FIXED weight, no dual). In hard mode
+            #   aoi_penalty_coef=0 so 'raw' adds nothing; 'indicator' is used with --mode soft.
+            if self.aoi_pen_type == 'indicator':
+                aoi_pen_i = self.aoi_pen_w * float(platoon_AoI[i] > self.tau_aoi)
+            else:
+                aoi_pen_i = platoon_AoI[i] * self.aoi_penalty_coef
+
             if action_temp[i, 1] == 0:
                 per_user_task1_reward[i] = (-4.95)*(Demand[i] / self.V2V_demand_size)
 
                 per_user_task2_reward[i] = (0.05)*self.Revenue_function(C_rate[i], self.V2I_min) \
-                                       - 0.5*math.log(action_temp[i, 2],5) - platoon_AoI[i] * self.aoi_penalty_coef
+                                       - 0.5*math.log(action_temp[i, 2],5) - aoi_pen_i
             else:
                 per_user_task1_reward[i] = (-4.95) * (Demand[i] / self.V2V_demand_size) - 0.5 * math.log(
                     action_temp[i, 2], 5)
 
-                per_user_task2_reward[i] = (0.05) * self.Revenue_function(C_rate[i], self.V2I_min) - platoon_AoI[i] * self.aoi_penalty_coef
+                per_user_task2_reward[i] = (0.05) * self.Revenue_function(C_rate[i], self.V2I_min) - aoi_pen_i
 
         global_reward = -np.mean((self.Interference_all + 60) / 60) + self.LAMBDA_JAIN * self.compute_jain_aoi()
         # [RQ1-CMDP] per-platoon constraint cost = AoI-violation indicator 1{AoI>tau}.
