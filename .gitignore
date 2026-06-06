@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .idea/
+tmp/
 
 # nested un-edited duplicate of the project (kept on disk, not tracked)
 AoI-V2X-backup-main/
