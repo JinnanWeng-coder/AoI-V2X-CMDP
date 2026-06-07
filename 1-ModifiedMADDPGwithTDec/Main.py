@@ -85,6 +85,12 @@ parser.add_argument('--aoi_pen_type', choices=['raw', 'indicator'], default='raw
                     help='[RQ1-CMDP #4] soft AoI penalty shape (default raw = current behaviour)')
 parser.add_argument('--aoi_pen_w', type=float, default=5.0,
                     help='[RQ1-CMDP #4] fixed weight for the indicator penalty (only used when aoi_pen_type=indicator)')
+# [RQ1-CMDP scenario sweep] resource pool / fleet size (defaults = original scenario).
+#   n_RB = shared resource blocks; n_veh = total vehicles (platoons = n_veh/size_platoon).
+#   Everything downstream (n_platoon, n_input via get_state, network dims, .mat shapes)
+#   auto-sizes; the locked CMDP config (tau/eps/PID/lam_max) is unchanged.
+parser.add_argument('--n_RB', type=int, default=3, help='[RQ1-CMDP] number of resource blocks (scenario sweep)')
+parser.add_argument('--n_veh', type=int, default=20, help='[RQ1-CMDP] total vehicles; platoons = n_veh/size_platoon (scenario sweep)')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -151,9 +157,9 @@ else:
 # ------------------------------------------------------------------------------------------------------------------ #
 # ------------------------------------------------------------------------------------------------------------------ #
 size_platoon = 4
-n_veh = 20  # n_platoon * size_platoon
+n_veh = args.n_veh  # [RQ1-CMDP] total vehicles (scenario sweep; default 20)
 n_platoon = int(n_veh / size_platoon)  # number of platoons
-n_RB = 3  # number of resource blocks
+n_RB = args.n_RB  # [RQ1-CMDP] resource blocks (scenario sweep; default 3)
 n_S = 2  # decision parameter for Intra/Inter platoon communication
 Gap = 25 # meter
 max_power = 30  # platoon leader maximum power in dbm ---> watt = 10^[(dbm - 30)/10]
