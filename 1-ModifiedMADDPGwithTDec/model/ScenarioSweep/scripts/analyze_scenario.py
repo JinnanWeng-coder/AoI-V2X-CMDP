@@ -13,17 +13,18 @@ SANITY:
   - n_platoon rows: viol_rate.mat rows == platoons P (auto-sizing worked)
   - global_max: lambda.mat rows identical across platoons each episode
   - fixed-w10 (soft): lambda.mat == 0
-Outputs results_remote/RQ1_SCENARIO_SWEEP.md. Exit 2 if any of the 96 runs missing.
+Outputs model/ScenarioSweep/RQ1_SCENARIO_SWEEP.md. Exit 2 if any of the 96 runs missing.
 """
 import os
 import sys
 import numpy as np
 import scipy.io
 
-# this script lives in results_remote/scripts/ -> results_remote/ is one up
-RR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-MODEL = os.path.join(RR, "..", "1-ModifiedMADDPGwithTDec", "model")
-REPORT = os.path.join(RR, "RQ1_SCENARIO_SWEEP.md")
+# this script lives in model/ScenarioSweep/scripts/ -> the sweep root (which holds
+# both the 96 run dirs AND the report) is one up.
+SS = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+MODEL = SS                          # the 96 marl_model_*_rb*_pl* dirs live here
+REPORT = os.path.join(SS, "RQ1_SCENARIO_SWEEP.md")
 SEEDS = [2, 3, 4]
 # cells (rb, pl) in priority order
 CELLS = [(2, 6), (2, 5), (2, 4), (3, 4), (3, 6), (4, 4), (4, 5), (4, 6)]
@@ -124,7 +125,7 @@ def main():
     w("**(c) fixed-w10 (soft) lambda == 0:** %s (max |lambda| over all qind runs = %.2e)\n"
       % ("ALL PASS" if not qind_bad else "FAIL: " + "; ".join(qind_bad), qind_absmax))
 
-    w("## 3. Reproduce\n```\npython results_remote/scripts/analyze_scenario.py\n```")
+    w("## 3. Reproduce\n```\npython 1-ModifiedMADDPGwithTDec/model/ScenarioSweep/scripts/analyze_scenario.py\n```")
 
     with open(REPORT, "w", encoding="utf-8") as f:
         f.write("\n".join(L) + "\n")

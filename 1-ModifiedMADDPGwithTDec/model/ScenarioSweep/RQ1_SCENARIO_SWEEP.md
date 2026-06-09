@@ -51,5 +51,5 @@ Varies ONLY the scenario (n_RB, n_veh); locked CMDP config fixed (tau=8 eps=0.10
 
 ## 3. Reproduce
 ```
-python results_remote/scripts/analyze_scenario.py
+python 1-ModifiedMADDPGwithTDec/model/ScenarioSweep/scripts/analyze_scenario.py
 ```

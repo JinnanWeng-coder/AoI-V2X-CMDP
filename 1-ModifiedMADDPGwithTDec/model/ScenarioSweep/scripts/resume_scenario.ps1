@@ -6,11 +6,11 @@
 #     D:\Jinnan\CMDP\AoI-V2X-CMDP\results_remote\scripts\resume_scenario.ps1
 # Stop-Process any stale driver polling dead runs first. If all 96 viol_rate.mat
 # exist but no report (driver timeout exit), run analyze_scenario.py manually.
-# (scripts/ is 2 levels under repo.)
+# (scripts/ is now 4 levels under repo: repo\1-ModifiedMADDPGwithTDec\model\ScenarioSweep\scripts.)
 # =====================================================================
 $ErrorActionPreference = 'Stop'
 $HERE = $PSScriptRoot
-$REPO = Split-Path -Parent (Split-Path -Parent $HERE)
+$REPO = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $HERE)))
 $LOG  = Join-Path $REPO "1-ModifiedMADDPGwithTDec\logs"
 New-Item -ItemType Directory -Force $LOG | Out-Null
 $boot = Join-Path $LOG "scenario_driver.boot.log"

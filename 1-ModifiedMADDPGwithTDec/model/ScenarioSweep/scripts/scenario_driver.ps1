@@ -13,7 +13,11 @@
 #
 # Detached, idempotent: a run is SKIPPED if its model dir's viol_rate.mat exists.
 # PRIORITY: rb2 row first (rb2,pl6 / rb2,pl5 / rb2,pl4 = scarce/high-load frontier),
-# then rb3, then rb4. Waves of <=6. scripts/ is 2 levels under repo.
+# then rb3, then rb4. Waves of <=6.
+# ARCHIVED under model/ScenarioSweep/scripts/ (4 levels under repo) after the sweep
+# finished. NOTE: Main.py still writes fresh runs to model/marl_model_<name> (its
+# default out path); the completed run dirs were moved into model/ScenarioSweep/. So a
+# re-run would emit to model/ and would need re-organizing; kept here for provenance.
 # =====================================================================
 $ErrorActionPreference = 'Stop'
 $EPISODES = 600
@@ -22,7 +26,8 @@ $MAXCONC = 6
 $POLL_SEC = 30
 $WAVE_TIMEOUT_MIN = 1440
 
-$REPO = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+# scripts/ is now 4 levels under repo: repo\1-ModifiedMADDPGwithTDec\model\ScenarioSweep\scripts
+$REPO = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
 $PY   = Join-Path $REPO ".venv\Scripts\python.exe"
 $WD   = Join-Path $REPO "1-ModifiedMADDPGwithTDec"
 $MODEL= Join-Path $WD "model"
