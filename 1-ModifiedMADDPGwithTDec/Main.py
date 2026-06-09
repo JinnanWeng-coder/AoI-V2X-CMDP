@@ -289,6 +289,8 @@ power_total = np.zeros([n_platoon, n_episode_test, n_step_per_episode], dtype=np
 AoI_total = np.zeros([n_platoon, n_episode], dtype=np.float16)
 record_reward_t1_ = np.zeros([n_platoon, n_episode], dtype=np.float16)
 record_reward_t2_ = np.zeros([n_platoon, n_episode], dtype=np.float16)
+record_reward_cost_ = np.zeros([n_platoon, n_episode], dtype=np.float16)   # [RQ1-CMDP] cost-critic reward = mean 1{AoI>tau} (== per-episode violation rate)
+record_reward_total_ = np.zeros([n_platoon, n_episode], dtype=np.float16)  # [RQ1-CMDP] per-platoon total task reward = t1 + t2
 record_reward_global_ = np.zeros([n_episode], dtype=np.float16)
 Jain_total = np.zeros([n_episode], dtype=np.float16)
 # [RQ1-CMDP] per-platoon, per-episode violation rate and multiplier traces.
@@ -367,6 +369,7 @@ if IS_TRAIN:
         print("-------------------------------------------------------------------------------------------------------")
         record_reward_t1 = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)
         record_reward_t2 = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)
+        record_reward_cost = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)   # [RQ1-CMDP]
         record_reward_global = np.zeros([n_step_per_episode], dtype=np.float16)
         record_AoI = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)
         record_Jain = np.zeros([n_step_per_episode], dtype=np.float16)
@@ -408,6 +411,7 @@ if IS_TRAIN:
             for i in range(n_platoon):
                 record_reward_t1[i, i_step] = task_1_r[i]
                 record_reward_t2[i, i_step] = task_2_r[i]
+                record_reward_cost[i, i_step] = cost_aoi[i]   # [RQ1-CMDP] cost-critic reward signal
                 record_AoI[i, i_step] = env.AoI[i]
             record_reward_global[i_step] = global_reward
             record_Jain[i_step] = env.compute_jain_aoi()
@@ -466,6 +470,8 @@ if IS_TRAIN:
 
         record_reward_t1_[:, i_episode] = np.mean(record_reward_t1, axis=1)
         record_reward_t2_[:, i_episode] = np.mean(record_reward_t2, axis=1)
+        record_reward_cost_[:, i_episode] = np.mean(record_reward_cost, axis=1)        # [RQ1-CMDP] cost reward
+        record_reward_total_[:, i_episode] = record_reward_t1_[:, i_episode] + record_reward_t2_[:, i_episode]  # [RQ1-CMDP] total task reward (t1+t2)
         record_reward_global_[i_episode] = np.mean(record_reward_global)
         AoI_total[:, i_episode] = np.mean(record_AoI, axis=1)
         Jain_total[i_episode] = np.mean(record_Jain)
@@ -541,6 +547,8 @@ if IS_TRAIN:
 
     reward_path_t1 = os.path.join(current_dir, "model/" + label + '/reward_t1.mat')
     reward_path_t2 = os.path.join(current_dir, "model/" + label + '/reward_t2.mat')
+    reward_path_cost = os.path.join(current_dir, "model/" + label + '/reward_cost.mat')      # [RQ1-CMDP]
+    reward_path_total = os.path.join(current_dir, "model/" + label + '/reward_total.mat')    # [RQ1-CMDP]
     reward_path_global = os.path.join(current_dir, "model/" + label + '/reward_global.mat')
     AoI_path = os.path.join(current_dir, "model/" + label + '/AoI.mat')
     Jain_path = os.path.join(current_dir, "model/" + label + '/Jain.mat')
@@ -554,6 +562,8 @@ if IS_TRAIN:
 
     scipy.io.savemat(reward_path_t1, {'reward_t1': record_reward_t1_})
     scipy.io.savemat(reward_path_t2, {'reward_t2': record_reward_t2_})
+    scipy.io.savemat(reward_path_cost, {'reward_cost': record_reward_cost_})       # [RQ1-CMDP]
+    scipy.io.savemat(reward_path_total, {'reward_total': record_reward_total_})     # [RQ1-CMDP]
     scipy.io.savemat(reward_path_global, {'reward_global': record_reward_global_})
     scipy.io.savemat(AoI_path, {'AoI': AoI_total})
     scipy.io.savemat(Jain_path, {'Jain': Jain_total})
