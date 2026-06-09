@@ -6,9 +6,11 @@ because a **600-ep support for Claim 4 is planned** to replace this 300-ep versi
 Current findings + live data→claim map: `../../../CLAUDE.md`.
 
 ## What's here
-- **Runs (20):** `marl_model_hard_seed{2-11}_t8e10` (integral) + `_t8e10_pid` (PID), 300 ep,
-  seeds 2–11. Claim-4 metric: worst platoon's per-episode `viol_rate.mat` last-100-ep std
-  ≈ 0.175 (integral) → 0.097 (PID), concentrated on seeds 3,7. Also the n=10 CI headline.
+- **Runs (30):** the full 300-ep headline set, seeds 2–11 — `marl_model_soft_seed{2-11}_base`
+  (soft baseline), `marl_model_hard_seed{2-11}_t8e10` (integral) + `_t8e10_pid` (PID).
+  Claim-4 metric: worst platoon's per-episode `viol_rate.mat` last-100-ep std ≈ 0.175
+  (integral) → 0.097 (PID), concentrated on seeds 3,7. soft-vs-hard = the n=10 CI headline.
+  (The LIVE baseline is the separate `soft_*_base_ep600` in `model/` root — NOT here.)
 - **Report:** `RQ1_REMOTE_REPORT.md` (the integral-era headline + τ/ε phase + floor write-up;
   several numbers later superseded by the ep600 canon).
 - **Figures:** `fig_headline_violation.png`, `fig_lambda.png`, `fig_cost_tradeoff.png`

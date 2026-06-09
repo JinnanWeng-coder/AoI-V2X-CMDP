@@ -111,7 +111,7 @@ flat in `model/`.
 
 | run-class (tag) | seeds | conditions | what it tests |
 |---|---|---|---|
-| `soft_seedN_base` | 2–11 | 300 ep, soft baseline | headline + n=10 CI; the comparison baseline |
+| `Legacy_300ep/claim4_support/ soft_seedN_base` | 2–11 | 300 ep, soft baseline | the 300ep headline / n=10 CI baseline (paired with the t8e10 runs there). **300ep — archived**; the LIVE baseline is `soft_*_base_ep600` |
 | `Legacy_300ep/claim4_support/ hard_seedN_t8e10`, `_t8e10_pid` | 2–11 | 300 ep, integral vs PID | claim-4 limit-cycle data + n=10 CI headline. **300ep — archived; a 600ep support is planned** |
 | `Legacy_300ep/ hard_seedN_t{10,12}e{10,15}(_pid)`, `_t8e15(_pid)` | 2–7 (t10/12e10 also 8–11) | 300 ep | **RETIRED** τ/ε phase grid, non-(8,10) cells (superseded by `ScenarioSweep/`). The (8,10) cell = the `t8e10` rows above, kept in root (claim-4/headline). |
 | `Legacy_300ep/ hard_seedN_t8e10_anneal` | 2–7 | 300 ep, σ-anneal | **RETIRED** stability ablation (σ-anneal — rejected) |
