@@ -91,6 +91,14 @@ parser.add_argument('--aoi_pen_w', type=float, default=5.0,
 #   auto-sizes; the locked CMDP config (tau/eps/PID/lam_max) is unchanged.
 parser.add_argument('--n_RB', type=int, default=3, help='[RQ1-CMDP] number of resource blocks (scenario sweep)')
 parser.add_argument('--n_veh', type=int, default=20, help='[RQ1-CMDP] total vehicles; platoons = n_veh/size_platoon (scenario sweep)')
+# [RQ1-CMDP] frozen-deployment evaluation (Experiments A in-distribution / B held-out).
+#   Default 0 = no eval (training path byte-for-byte unchanged).
+parser.add_argument('--eval_episodes', type=int, default=0,
+                    help='[RQ1-CMDP] after training, run N frozen-deployment eval episodes (noise OFF, no learning/dual/buffer); 0=off')
+parser.add_argument('--eval_warmup', type=int, default=5,
+                    help='[RQ1-CMDP] eval episodes discarded as warmup (env.AoI reset to 100 at eval start)')
+parser.add_argument('--eval_holdout_seeds', type=str, default='',
+                    help='[RQ1-CMDP] comma-separated held-out seeds for Experiment B (fresh new_random_game per seed); empty=A only')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -287,6 +295,52 @@ Jain_total = np.zeros([n_episode], dtype=np.float16)
 # These two are the headline RQ1 outputs (soft vs hard comparison).
 viol_total = np.zeros([n_platoon, n_episode], dtype=np.float32)
 lambda_total = np.zeros([n_platoon, n_episode], dtype=np.float32)
+
+
+# [RQ1-CMDP] frozen-deployment evaluation (Experiment A in-distribution / B held-out).
+#   Freeze the trained actor: noise=0 (deterministic policy), NO learning, NO dual update,
+#   NO buffer writes. Same per-step env stepping as training (choose_action ->
+#   act_for_training -> renew fastfading -> Compute_Interference -> get_state). Records
+#   per-step platoon AoI + Tx power; discards the first `warmup` episodes (AoI reset to 100
+#   at eval start). reseed=None -> in-distribution (continue the training RNG stream);
+#   reseed=int -> a held-out scenario (fresh seed + env.new_random_game()). Reads nothing,
+#   writes nothing into the training arrays/.mat.
+def run_frozen_eval(n_eval, warmup, reseed=None):
+    if reseed is not None:
+        random.seed(reseed)
+        np.random.seed(reseed)
+        T.manual_seed(reseed)
+        env.new_random_game()
+    for ag in agents:
+        ag.noise = 0.0                                  # deterministic actor (no exploration)
+    total = int(n_eval + warmup)
+    aoi_evo = np.zeros([n_platoon, total, n_step_per_episode], dtype=np.float16)
+    pow_evo = np.zeros([n_platoon, total, n_step_per_episode], dtype=np.float16)
+    env.AoI = np.ones(int(n_platoon)) * 100
+    for ep in range(total):
+        env.V2V_demand = env.V2V_demand_size * np.ones(n_platoon, dtype=np.float16)
+        env.individual_time_limit = env.time_slow * np.ones(n_platoon, dtype=np.float16)
+        env.active_links = np.ones((int(env.n_Veh / env.size_platoon)), dtype='bool')
+        if ep % 20 == 0:
+            env.renew_positions()
+            env.renew_channel(n_veh, size_platoon)
+            env.renew_channels_fastfading()
+        state_old = [get_state(env=env, idx=i) for i in range(n_platoon)]
+        for i_step in range(n_step_per_episode):
+            at = np.zeros([n_platoon, n_output], dtype=int)
+            for i in range(n_platoon):
+                a = np.clip(agents[i].choose_action(state_old[i]), -0.999, 0.999)
+                at[i, 0] = ((a[0] + 1) / 2) * n_RB
+                at[i, 1] = ((a[1] + 1) / 2) * n_S
+                at[i, 2] = np.round(np.clip(((a[2] + 1) / 2) * max_power, 1, max_power))
+            _, _, _, _, platoon_AoI, C_rate, V_rate, Demand_R, V2V_success = env.act_for_training(at.copy())
+            env.renew_channels_fastfading()
+            env.Compute_Interference(at.copy())
+            for i in range(n_platoon):
+                aoi_evo[i, ep, i_step] = platoon_AoI[i]
+                pow_evo[i, ep, i_step] = at[i, 2]
+            state_old = [get_state(env=env, idx=i) for i in range(n_platoon)]
+    return aoi_evo[:, warmup:, :], pow_evo[:, warmup:, :]
 # ------------------------------------------------------------------------------------------------------------------ #
 if IS_TRAIN:
     '''
@@ -514,6 +568,33 @@ if IS_TRAIN:
     global_agent.save_models()
     for i in range(n_platoon):
         agents[i].save_models()
+
+    # [RQ1-CMDP] frozen-deployment evaluation (default off; --eval_episodes 0).
+    #   A = in-distribution; B = held-out seeds. Writes *_test(.../_holdout_s{seed}).mat —
+    #   NEVER overwrites the training .mat above.
+    if args.eval_episodes > 0:
+        print('=== [RQ1-CMDP] frozen-deployment eval A (in-distribution) ===')
+        aoi_te, pow_te = run_frozen_eval(args.eval_episodes, args.eval_warmup, reseed=None)
+        viol_te = (aoi_te > env.tau_aoi).mean(axis=(1, 2))
+        ed = os.path.join(current_dir, "model", label)
+        scipy.io.savemat(os.path.join(ed, 'AoI_evolution_test.mat'), {'AoI_evolution_test': aoi_te})
+        scipy.io.savemat(os.path.join(ed, 'power_test.mat'), {'power_test': pow_te})
+        scipy.io.savemat(os.path.join(ed, 'viol_rate_test.mat'), {'viol_rate_test': viol_te})
+        print('  eval A: worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
+              % (float(viol_te.max()), float(viol_te.mean()), float(pow_te.mean())))
+        for x in args.eval_holdout_seeds.split(','):
+            x = x.strip()
+            if x == '':
+                continue
+            hs = int(x)
+            print('=== [RQ1-CMDP] frozen-deployment eval B (held-out seed %d) ===' % hs)
+            aoi_h, pow_h = run_frozen_eval(args.eval_episodes, args.eval_warmup, reseed=hs)
+            viol_h = (aoi_h > env.tau_aoi).mean(axis=(1, 2))
+            scipy.io.savemat(os.path.join(ed, 'AoI_evolution_test_holdout_s%d.mat' % hs), {'AoI_evolution_test': aoi_h})
+            scipy.io.savemat(os.path.join(ed, 'power_test_holdout_s%d.mat' % hs), {'power_test': pow_h})
+            scipy.io.savemat(os.path.join(ed, 'viol_rate_test_holdout_s%d.mat' % hs), {'viol_rate_test': viol_h})
+            print('  eval B(s%d): worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
+                  % (hs, float(viol_h.max()), float(viol_h.mean()), float(pow_h.mean())))
 
 if writer is not None:
     writer.close()
