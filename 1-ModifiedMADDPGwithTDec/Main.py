@@ -96,9 +96,23 @@ parser.add_argument('--n_veh', type=int, default=20, help='[RQ1-CMDP] total vehi
 parser.add_argument('--eval_episodes', type=int, default=0,
                     help='[RQ1-CMDP] after training, run N frozen-deployment eval episodes (noise OFF, no learning/dual/buffer); 0=off')
 parser.add_argument('--eval_warmup', type=int, default=5,
-                    help='[RQ1-CMDP] eval episodes discarded as warmup (env.AoI reset to 100 at eval start)')
+                    help='[RQ1-CMDP] eval episodes discarded as warmup (env.AoI reset at eval start per --eval_start)')
 parser.add_argument('--eval_holdout_seeds', type=str, default='',
                     help='[RQ1-CMDP] comma-separated held-out seeds for Experiment B (fresh new_random_game per seed); empty=A only')
+# [RQ1-CMDP] eval start state + eval-only mode + output subfolder.
+#   --eval_start warm (DEFAULT): AoI starts at 1 slot (steady-state deployment); files get
+#     a _warm suffix (*_test_warm*.mat) so the committed cold-boot results are never
+#     overwritten. cold: legacy synchronized cold boot at AoI=100 (plain *_test*.mat) —
+#     known to deadlock the greedy frozen policy (documented robustness caveat).
+#   --eval_only: skip training entirely; load this run's checkpoints (env var
+#     RQ1_CKPT_SUBDIR must point at the run's checkpoint subdir) and run only the eval.
+#   --out_subdir: optional subfolder under model/ (e.g. ep600_deploy) for run isolation.
+parser.add_argument('--eval_start', choices=['warm', 'cold'], default='warm',
+                    help='[RQ1-CMDP] eval initial AoI: warm=1 (steady state, _warm files), cold=100 (legacy names)')
+parser.add_argument('--eval_only', action='store_true',
+                    help='[RQ1-CMDP] skip training; load checkpoints (RQ1_CKPT_SUBDIR) and run only the frozen eval')
+parser.add_argument('--out_subdir', type=str, default='',
+                    help='[RQ1-CMDP] optional subfolder under model/ for all outputs (e.g. ep600_deploy)')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -144,11 +158,13 @@ print('right_lanes :', right_lanes)
 print('------------------------------------')
 width = 750 / 2
 height = 1298 / 2
-IS_TRAIN = 1
+IS_TRAIN = 0 if args.eval_only else 1   # [RQ1-CMDP] --eval_only skips training
 IS_TEST = 1 - IS_TRAIN
 label = 'marl_model_' + CONSTRAINT_MODE + '_seed' + str(SEED)   # [RQ1-CMDP] separate soft/hard/seed outputs
 if args.out_tag:                                               # [RQ1-CMDP] further isolate by tau/eps/floor
     label = label + '_' + args.out_tag
+if args.out_subdir:                                            # [RQ1-CMDP] optional model/ subfolder
+    label = args.out_subdir + '/' + label
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 repo_dir = os.path.dirname(current_dir)
@@ -297,6 +313,11 @@ Jain_total = np.zeros([n_episode], dtype=np.float16)
 # These two are the headline RQ1 outputs (soft vs hard comparison).
 viol_total = np.zeros([n_platoon, n_episode], dtype=np.float32)
 lambda_total = np.zeros([n_platoon, n_episode], dtype=np.float32)
+# [RQ1-CMDP] cost-critic training diagnostics (pure logging, from local_critic diag_*):
+#   critic_loss_cost = per-episode mean Bellman MSE of Q^c (is the cost critic converging?)
+#   cost_force       = per-episode mean of lam_j * mean Q^c(s, pi(s)) (the constraint force)
+critic_loss_cost_total = np.zeros([n_platoon, n_episode], dtype=np.float32)
+cost_force_total = np.zeros([n_platoon, n_episode], dtype=np.float32)
 
 
 # [RQ1-CMDP] frozen-deployment evaluation (Experiment A in-distribution / B held-out).
@@ -318,7 +339,11 @@ def run_frozen_eval(n_eval, warmup, reseed=None):
     total = int(n_eval + warmup)
     aoi_evo = np.zeros([n_platoon, total, n_step_per_episode], dtype=np.float16)
     pow_evo = np.zeros([n_platoon, total, n_step_per_episode], dtype=np.float16)
-    env.AoI = np.ones(int(n_platoon)) * 100
+    # [RQ1-CMDP] warm (default) = steady-state deployment: AoI starts at 1 slot
+    # (just-served); cold = legacy synchronized cold boot at the AoI cap (100) — known
+    # to deadlock the greedy frozen policy (kept reproducible as the documented caveat).
+    start_aoi = 1.0 if args.eval_start == 'warm' else 100.0
+    env.AoI = np.ones(int(n_platoon)) * start_aoi
     for ep in range(total):
         env.V2V_demand = env.V2V_demand_size * np.ones(n_platoon, dtype=np.float16)
         env.individual_time_limit = env.time_slow * np.ones(n_platoon, dtype=np.float16)
@@ -343,6 +368,37 @@ def run_frozen_eval(n_eval, warmup, reseed=None):
                 pow_evo[i, ep, i_step] = at[i, 2]
             state_old = [get_state(env=env, idx=i) for i in range(n_platoon)]
     return aoi_evo[:, warmup:, :], pow_evo[:, warmup:, :]
+
+
+# [RQ1-CMDP] full deployment-eval suite (A in-distribution + B held-out), shared by the
+# post-training path and --eval_only. File naming: warm start (default) writes
+# *_test_warm*.mat; cold start keeps the legacy *_test*.mat names, so the committed
+# cold-boot results are never overwritten.
+def run_deploy_eval_suite():
+    sfx = '_warm' if args.eval_start == 'warm' else ''
+    ed = os.path.join(current_dir, "model", label)
+    os.makedirs(ed, exist_ok=True)
+    print('=== [RQ1-CMDP] frozen-deployment eval A (in-distribution, %s start) ===' % args.eval_start)
+    aoi_te, pow_te = run_frozen_eval(args.eval_episodes, args.eval_warmup, reseed=None)
+    viol_te = (aoi_te > env.tau_aoi).mean(axis=(1, 2))
+    scipy.io.savemat(os.path.join(ed, 'AoI_evolution_test%s.mat' % sfx), {'AoI_evolution_test': aoi_te})
+    scipy.io.savemat(os.path.join(ed, 'power_test%s.mat' % sfx), {'power_test': pow_te})
+    scipy.io.savemat(os.path.join(ed, 'viol_rate_test%s.mat' % sfx), {'viol_rate_test': viol_te})
+    print('  eval A%s: worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
+          % (sfx, float(viol_te.max()), float(viol_te.mean()), float(pow_te.mean())))
+    for x in args.eval_holdout_seeds.split(','):
+        x = x.strip()
+        if x == '':
+            continue
+        hs = int(x)
+        print('=== [RQ1-CMDP] frozen-deployment eval B (held-out seed %d, %s start) ===' % (hs, args.eval_start))
+        aoi_h, pow_h = run_frozen_eval(args.eval_episodes, args.eval_warmup, reseed=hs)
+        viol_h = (aoi_h > env.tau_aoi).mean(axis=(1, 2))
+        scipy.io.savemat(os.path.join(ed, 'AoI_evolution_test%s_holdout_s%d.mat' % (sfx, hs)), {'AoI_evolution_test': aoi_h})
+        scipy.io.savemat(os.path.join(ed, 'power_test%s_holdout_s%d.mat' % (sfx, hs)), {'power_test': pow_h})
+        scipy.io.savemat(os.path.join(ed, 'viol_rate_test%s_holdout_s%d.mat' % (sfx, hs)), {'viol_rate_test': viol_h})
+        print('  eval B%s(s%d): worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
+              % (sfx, hs, float(viol_h.max()), float(viol_h.mean()), float(pow_h.mean())))
 # ------------------------------------------------------------------------------------------------------------------ #
 if IS_TRAIN:
     '''
@@ -373,6 +429,10 @@ if IS_TRAIN:
         record_reward_global = np.zeros([n_step_per_episode], dtype=np.float16)
         record_AoI = np.zeros([n_platoon, n_step_per_episode], dtype=np.float16)
         record_Jain = np.zeros([n_step_per_episode], dtype=np.float16)
+        for ag in agents:   # [RQ1-CMDP] reset the per-episode cost-critic diagnostics
+            ag.diag_closs_sum = 0.0
+            ag.diag_force_sum = 0.0
+            ag.diag_n = 0
 
         env.V2V_demand = env.V2V_demand_size * np.ones(n_platoon, dtype=np.float16)
         env.individual_time_limit = env.time_slow * np.ones(n_platoon, dtype=np.float16)
@@ -479,6 +539,12 @@ if IS_TRAIN:
         # [RQ1-CMDP] per-platoon episodic violation rate  P(AoI_j > tau).
         viol_rate = np.mean(record_AoI > env.tau_aoi, axis=1)     # (n_platoon,)
         viol_total[:, i_episode] = viol_rate
+        # [RQ1-CMDP] per-episode cost-critic diagnostics (0 until the buffer fills and
+        # learning starts; pure logging).
+        for j in range(n_platoon):
+            dn = max(agents[j].diag_n, 1)
+            critic_loss_cost_total[j, i_episode] = agents[j].diag_closs_sum / dn
+            cost_force_total[j, i_episode] = agents[j].diag_force_sum / dn
         # Two-timescale dual ascent (slow loop): raise lambda_j when platoon j
         # exceeds its target violation probability, lower it otherwise.
         if CONSTRAINT_MODE == 'hard':
@@ -549,7 +615,8 @@ if IS_TRAIN:
     reward_path_t2 = os.path.join(current_dir, "model/" + label + '/reward_t2.mat')
     reward_path_cost = os.path.join(current_dir, "model/" + label + '/reward_cost.mat')      # [RQ1-CMDP]
     reward_path_total = os.path.join(current_dir, "model/" + label + '/reward_total.mat')    # [RQ1-CMDP]
-    reward_path_global = os.path.join(current_dir, "model/" + label + '/reward_global.mat')
+    closs_path = os.path.join(current_dir, "model/" + label + '/critic_loss_cost.mat')       # [RQ1-CMDP]
+    cforce_path = os.path.join(current_dir, "model/" + label + '/cost_force.mat')            # [RQ1-CMDP]
     AoI_path = os.path.join(current_dir, "model/" + label + '/AoI.mat')
     Jain_path = os.path.join(current_dir, "model/" + label + '/Jain.mat')
     viol_path = os.path.join(current_dir, "model/" + label + '/viol_rate.mat')
@@ -564,7 +631,10 @@ if IS_TRAIN:
     scipy.io.savemat(reward_path_t2, {'reward_t2': record_reward_t2_})
     scipy.io.savemat(reward_path_cost, {'reward_cost': record_reward_cost_})       # [RQ1-CMDP]
     scipy.io.savemat(reward_path_total, {'reward_total': record_reward_total_})     # [RQ1-CMDP]
-    scipy.io.savemat(reward_path_global, {'reward_global': record_reward_global_})
+    # [RQ1-CMDP] reward_global.mat is intentionally no longer written (inert at the actor
+    # due to the retained detached global-critic; older runs still contain it).
+    scipy.io.savemat(closs_path, {'critic_loss_cost': critic_loss_cost_total})      # [RQ1-CMDP]
+    scipy.io.savemat(cforce_path, {'cost_force': cost_force_total})                 # [RQ1-CMDP]
     scipy.io.savemat(AoI_path, {'AoI': AoI_total})
     scipy.io.savemat(Jain_path, {'Jain': Jain_total})
     scipy.io.savemat(viol_path, {'viol_rate': viol_total})         # [RQ1-CMDP]
@@ -580,31 +650,20 @@ if IS_TRAIN:
         agents[i].save_models()
 
     # [RQ1-CMDP] frozen-deployment evaluation (default off; --eval_episodes 0).
-    #   A = in-distribution; B = held-out seeds. Writes *_test(.../_holdout_s{seed}).mat —
-    #   NEVER overwrites the training .mat above.
     if args.eval_episodes > 0:
-        print('=== [RQ1-CMDP] frozen-deployment eval A (in-distribution) ===')
-        aoi_te, pow_te = run_frozen_eval(args.eval_episodes, args.eval_warmup, reseed=None)
-        viol_te = (aoi_te > env.tau_aoi).mean(axis=(1, 2))
-        ed = os.path.join(current_dir, "model", label)
-        scipy.io.savemat(os.path.join(ed, 'AoI_evolution_test.mat'), {'AoI_evolution_test': aoi_te})
-        scipy.io.savemat(os.path.join(ed, 'power_test.mat'), {'power_test': pow_te})
-        scipy.io.savemat(os.path.join(ed, 'viol_rate_test.mat'), {'viol_rate_test': viol_te})
-        print('  eval A: worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
-              % (float(viol_te.max()), float(viol_te.mean()), float(pow_te.mean())))
-        for x in args.eval_holdout_seeds.split(','):
-            x = x.strip()
-            if x == '':
-                continue
-            hs = int(x)
-            print('=== [RQ1-CMDP] frozen-deployment eval B (held-out seed %d) ===' % hs)
-            aoi_h, pow_h = run_frozen_eval(args.eval_episodes, args.eval_warmup, reseed=hs)
-            viol_h = (aoi_h > env.tau_aoi).mean(axis=(1, 2))
-            scipy.io.savemat(os.path.join(ed, 'AoI_evolution_test_holdout_s%d.mat' % hs), {'AoI_evolution_test': aoi_h})
-            scipy.io.savemat(os.path.join(ed, 'power_test_holdout_s%d.mat' % hs), {'power_test': pow_h})
-            scipy.io.savemat(os.path.join(ed, 'viol_rate_test_holdout_s%d.mat' % hs), {'viol_rate_test': viol_h})
-            print('  eval B(s%d): worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
-                  % (hs, float(viol_h.max()), float(viol_h.mean()), float(pow_h.mean())))
+        run_deploy_eval_suite()
+
+# [RQ1-CMDP] eval-only: load the frozen policies from this run's checkpoints and run ONLY
+# the deployment eval (no training, no buffer, no dual). RQ1_CKPT_SUBDIR must point at the
+# SAME per-run checkpoint subdir the training run used (REMOTE_RUNBOOK §3). Note: eval A
+# here starts from the seed's initial geometry (no training preceded) — still in-distribution.
+if args.eval_only:
+    print('=== [RQ1-CMDP] eval-only: loading agent checkpoints (RQ1_CKPT_SUBDIR=%s) ==='
+          % os.environ.get('RQ1_CKPT_SUBDIR', 'tmp/ddpg'))
+    for i in range(n_platoon):
+        agents[i].load_models()
+    if args.eval_episodes > 0:
+        run_deploy_eval_suite()
 
 if writer is not None:
     writer.close()

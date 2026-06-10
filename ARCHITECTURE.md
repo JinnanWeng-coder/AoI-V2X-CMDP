@@ -116,6 +116,11 @@ identical between modes, so any difference in results is from the AoI handling a
 | `--lam_scope {per_platoon,global_mean,global_max}` | per_platoon | **ablation #3**: per-platoon λ_j vs a single global multiplier |
 | `--aoi_pen_type {raw,indicator}` (+`--aoi_pen_w` 5.0) | raw | **ablation #4**: raw vs fixed-weight threshold penalty (use with `--mode soft`) |
 | `--out_tag` | "" | suffix for the run's output folder (run isolation) |
+| `--out_subdir` | "" | optional subfolder under `model/` for all outputs (e.g. `ep600_deploy`) |
+| `--eval_episodes` (+`--eval_warmup` 5) | 0 | **frozen-deployment eval**: after training (or with `--eval_only`), run N deterministic episodes — noise=0, no learning, no dual, no buffer |
+| `--eval_holdout_seeds` | "" | comma-separated held-out seeds → Experiment B (fresh `new_random_game` per seed) |
+| `--eval_start {warm,cold}` | warm | eval initial AoI: warm=1 slot (steady-state; files `*_test_warm*.mat`), cold=100 (legacy cold-boot, plain `*_test*.mat` — deadlocks the greedy policy; kept as the documented caveat) |
+| `--eval_only` | off | skip training; load this run's checkpoints (env var `RQ1_CKPT_SUBDIR`) and run only the eval |
 | `--smoke` | off | tiny end-to-end wiring test (≈seconds; NOT a result) |
 
 **Locked config for the campaign (do NOT recalibrate):** τ=8, ε=0.10, λ_max=20,
@@ -126,11 +131,19 @@ canonical horizon **600 episodes**, seeds 2–7.
 
 ## 5. Outputs (per run, under `1-ModifiedMADDPGwithTDec/model/<run-dir>/`)
 
-12 `.mat` per run (Git-LFS tracked): `viol_rate.mat` and `lambda.mat`
-(`n_platoon × n_episode`, the RQ1 headline outputs), plus the originals `AoI.mat`,
-`AoI_evolution.mat` (`n_platoon × last-100-ep × step`), `power.mat`, `demand.mat`,
-`V2I.mat`, `V2V.mat`, `Jain.mat`, `reward_t1/t2/global.mat`. Run-dir naming and the
-full inventory are in `CLAUDE.md` §9.
+Training `.mat` per run (Git-LFS tracked): `viol_rate.mat` and `lambda.mat`
+(`n_platoon × n_episode`, the RQ1 headline outputs); `AoI.mat`, `Jain.mat`,
+`reward_t1/t2/cost/total.mat` (per-episode); `AoI_evolution.mat`
+(`n_platoon × last-100-ep × step`), `power.mat`, `demand.mat`, `V2I.mat`, `V2V.mat`
+(per-step, rolling last 100 ep); plus two cost-critic diagnostics:
+`critic_loss_cost.mat` (per-episode Bellman MSE of Q^c — is the cost critic converging?)
+and `cost_force.mat` (per-episode `λ_j·mean Q^c(s,π(s))` — the constraint force on the
+actor). `reward_global.mat` is **no longer written** (inert at the actor due to the
+retained detached global critic); runs recorded before 2026-06-11 still contain it and
+lack the two diagnostics. With `--eval_episodes`, the frozen-deployment eval adds
+`viol_rate_test*/AoI_evolution_test*/power_test*` (`_warm` suffix for the warm start,
+`_holdout_s{seed}` for Experiment B). Run-dir naming and the full inventory are in
+`CLAUDE.md` §2.
 
 ---
 

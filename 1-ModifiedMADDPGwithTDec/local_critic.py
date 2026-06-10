@@ -21,6 +21,12 @@ class Agent():
         # [RQ1-CMDP] constraint bookkeeping (set from Main.py)
         self.constraint_mode = 'soft'   # 'soft' (reward penalty) or 'hard' (CMDP)
         self.lam = 0.0                  # per-platoon Lagrange multiplier lambda_j
+        # [RQ1-CMDP] per-episode training diagnostics (reset + read by Main.py):
+        #   diag_closs_sum/diag_n  -> Bellman MSE of the cost critic (is Q^c converging?)
+        #   diag_force_sum/diag_n  -> lam_j * mean Q^c(s, pi(s)) (the constraint force on the actor)
+        self.diag_closs_sum = 0.0
+        self.diag_force_sum = 0.0
+        self.diag_n = 0
 
         self.actor = ActorNetwork(alpha, input_dims, A_fc1_dims, A_fc2_dims, n_agents,
                                 n_actions=n_actions, name='actor', agent_label=agent_name)
@@ -155,14 +161,22 @@ class Agent():
             # CMDP primal step: minimise reward-loss + lambda_j * E[discounted cost].
             # The global-critic term is dropped here (it is detached/zero-gradient
             # under the original code anyway); AoI is handled by the constraint.
-            actor_loss = actor_loss + self.lam * T.mean(
-                self.critic_cost.forward(states, self.actor.forward(states)))
+            qc_pi = T.mean(self.critic_cost.forward(states, self.actor.forward(states)))
+            actor_loss = actor_loss + self.lam * qc_pi
         else:
             # original 'soft' behaviour (AoI enters as a reward penalty in task2);
             # the global-critic term is the original detached, zero-gradient add.
             actor_loss = actor_loss + (T.mean(self.global_loss) * 2)
+            with T.no_grad():   # [RQ1-CMDP] diagnostics only (no graph, no RNG)
+                qc_pi = T.mean(self.critic_cost.forward(states, self.actor.forward(states)))
         actor_loss.backward()
         self.actor.optimizer.step()
+
+        # [RQ1-CMDP] pure logging: per-learn-step diagnostics, aggregated per episode
+        # by Main.py into critic_loss_cost.mat / cost_force.mat.
+        self.diag_closs_sum += float(critic_loss_cost.detach().cpu())
+        self.diag_force_sum += self.lam * float(qc_pi.detach().cpu())
+        self.diag_n += 1
 
         self.update_network_parameters()
 

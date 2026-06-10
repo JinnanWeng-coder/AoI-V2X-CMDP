@@ -88,9 +88,12 @@ are in `ARCHITECTURE.md`; how to actually run it is in `REMOTE_RUNBOOK.md`.
 
 τ=8, ε=0.10, λ_max=20, PID `kp=ki=1.0 kd=0.5`, η_λ=1.0 (integral arm), scenario
 **5 platoons × 4 veh × 3 RB**, seeds **2–7**, canonical horizon **600 episodes**. The
-headline `hard` policy uses the **PID-Lagrangian** dual. Every run writes 12 `.mat`
-(`viol_rate`, `lambda`, `AoI`, `AoI_evolution`, `power`, `demand`, `V2I`, `V2V`, `Jain`,
-`reward_t1/t2/global`).
+headline `hard` policy uses the **PID-Lagrangian** dual. Every run writes the per-run
+`.mat` set (`viol_rate`, `lambda`, `AoI`, `AoI_evolution`, `power`, `demand`, `V2I`,
+`V2V`, `Jain`, `reward_t1/t2/cost/total`; since 2026-06-11 also `critic_loss_cost` +
+`cost_force` = λ_j·mean Q^c, while `reward_global` is no longer written — older runs
+differ accordingly). Runs with `--eval_episodes` additionally hold frozen-deployment
+eval files `*_test*(_warm)(_holdout_s{seed}).mat` (see ARCHITECTURE.md §4/§5).
 
 ---
 
@@ -121,6 +124,7 @@ flat in `model/`.
 | `hard_seedN_t8e10_pid_ep600_glmean`, `..._glmax` | 2–7 | **600 ep**, single global λ | ablation #3 (claim 6): per-platoon vs global multiplier |
 | `soft_seedN_qind_w{2,5,10,20}_ep600` | 2–7 | **600 ep**, fixed-weight 1{AoI>τ} penalty | ablation #4 (claim 7): fixed-weight penalty vs dual |
 | `ScenarioSweep/ *_rb{2,3,4}_pl{4,5,6}` (4 arms) | 2,3,4 | **600 ep**, varies n_RB/platoons | resource-frontier sweep (self-contained; scripts + report inside the folder) |
+| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval | deployment-level test of claims 1–3. COLD-start eval (plain `*_test*`) deadlocked the greedy frozen policy (synchronized AoI=100 boot — documented caveat, NOT a steady-state result); WARM-start re-eval (`*_test_warm*`) is the deployment claim |
 
 **Which data backs which claim** (canonical = ep600 t8e10 three-arm, seeds 2–7):
 - Claim 1 (soft hides starvation): `soft_*_base_ep600`.
