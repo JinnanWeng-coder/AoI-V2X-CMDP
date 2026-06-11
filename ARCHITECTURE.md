@@ -147,7 +147,25 @@ lack the two diagnostics. With `--eval_episodes`, the frozen-deployment eval add
 
 ---
 
-## 6. Pointers
+## 6. Deployment evaluation (frozen policy)
+
+`run_frozen_eval` / `run_deploy_eval_suite` in `Main.py`: freeze the trained actor
+(noise=0 by default), **no learning, no dual update, no buffer writes**; identical
+per-step env stepping to training; initial AoI per `--eval_start` (warm=1 slot /
+cold=100) with the first `--eval_warmup` episodes discarded. A = in-distribution;
+B = one fresh `new_random_game` per held-out seed. `--eval_only` loads the run's saved
+checkpoints (`RQ1_CKPT_SUBDIR` env var) and skips training entirely — minutes per run.
+
+**Semantics caveat (load-bearing):** training certifies the **stochastic behaviour
+policy** `μ(s)+N(0,σ=0.3)` — the exploration noise also performs implicit coordination
+(RB symmetry-breaking) between agents. Deterministic deployment (noise=0) is a
+*different, uncertified* policy; empirically it loses the per-platoon guarantee, and a
+synchronized cold boot can deadlock it outright (see the deployment box in `CLAUDE.md`).
+The planned stochastic-deployment eval (σ>0 at eval time) closes this gap.
+
+---
+
+## 7. Pointers
 - **Current findings / what each run proves / audit protocol** → `CLAUDE.md`.
 - **Run & resume on the remote machine** → `REMOTE_RUNBOOK.md`.
 - **Paper claims / figures / numbers to write** → `../Manuscript/README_FOR_WRITING.md`.

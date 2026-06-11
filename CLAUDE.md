@@ -1,18 +1,20 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
-> ## ✅ RQ1 EXPERIMENTAL CAMPAIGN COMPLETE (2026-06-06) — nothing in flight
+> ## RQ1 STATUS (2026-06-11) — training-level campaign COMPLETE (findings 1–8 settled);
+> ## frozen-DEPLOYMENT evaluation IN PROGRESS (decisive stochastic-policy eval pending, §5)
 >
 > Terminology: **platoon = a convoy of vehicles (1 leader + followers); NOT a
 > software "platform".** Throughout, "per-platoon" means per-convoy.
 >
-> The full RQ1 campaign is done and on disk: **175 training runs** (139 base + 12
-> ablation #3 global-λ + 24 ablation #4 fixed-weight) under
-> `1-ModifiedMADDPGwithTDec/model/`, eight analysis reports + figures under
-> `results_remote/`, and five manuscript "claim figures" under `../Manuscript/figures/`.
+> On disk: **283 training runs** (139 base + 12 ablation #3 global-λ + 24 ablation #4
+> fixed-weight + 96 scenario sweep + 12 deployment) under `1-ModifiedMADDPGwithTDec/model/`
+> (study subfolders: `ScenarioSweep/`, `ep600_deploy/`, `Legacy_300ep/`); analysis reports
+> under `results_remote/` + the study folders; five manuscript "claim figures" under
+> `../Manuscript/figures/`.
 > All `.mat` are tracked via **Git LFS** (a fresh clone needs `git lfs install` then
 > `git lfs pull` to get real data, not pointers).
 >
-> **Seven settled findings (each verified against raw `.mat`):**
+> **Eight settled findings (each verified against raw `.mat`):**
 > 1. SOFT (network-average / soft-penalty AoI) hides a starved platoon: network-mean
 >    violation ≈0.18 while the worst platoon sits 0.35–0.49 (≫ ε=0.10).
 > 2. HARD per-platoon CMDP (cost critic + per-platoon λ) protects the worst platoon:
@@ -53,6 +55,36 @@
 >    seeds — so frame the dual's win as worst-CASE + cost + no-per-scenario-tuning, NOT
 >    raw average. ⇒ "constraint vs penalty" is real on the identical signal. See
 >    `results_remote/RQ1_ABLATION4_FIXEDWEIGHT.md`, `../Manuscript/data/fixed_weight_penalty_table.md`.
+> 8. **A genuine RESOURCE frontier exists at load ≈ 2 platoons/RB** (`ScenarioSweep/`:
+>    n_RB×platoons grid, 4 arms, seeds 2–4, ep600). At load ≥2.5 ALL arms collapse with λ
+>    pinned at the cap on every seed — a real resource wall (retires the residual
+>    "only-trainability" hedge; motivates RQ2/RQ3 prioritization). In the feasible band
+>    (load ≤1.67, well-trained seeds 3/4) the per-platoon dual holds the worst platoon at
+>    0.11–0.14 with λ OFF the cap, while soft sits 0.26–0.35. CAVEATS (honest): seed2
+>    pseudo-diverges at several feasible cells (under-training artifact, finding-5 family);
+>    n=3 seeds; at low load the simpler arms match the dual (granularity only matters when
+>    binding) — do NOT claim cross-load dominance. Evidence:
+>    `model/ScenarioSweep/RQ1_SCENARIO_SWEEP.md` + the operator's seeds-{3,4} re-analysis.
+>
+> **Manuscript reporting lens:** lead with the WORST-served convoy, not the network mean —
+> on canonical ep600 data the worst convoy's mean AoI improves **8.14→4.29 (−47%)**, p95
+> 21.5→10.7; most dramatic seed2 convoy: 12.6→3.3, per-step peak 83→25. The diluted
+> network-mean (5.4→4.4, −19%) under-sells the same result.
+>
+> **DEPLOYMENT EVALUATION (`ep600_deploy/`) — the OPEN front:** claims 1–3 are
+> TRAINING-level (recorded with exploration noise σ=0.3 while weights+λ still update).
+> Frozen-deployment tests so far: (i) COLD synchronized boot (AoI=100; plain `*_test*.mat`)
+> deadlocks the greedy deterministic policy — a boot-protocol artifact (the same convoys
+> train at AoI≈4), kept as a documented caveat. (ii) WARM start (`*_test_warm*.mat`)
+> removes the deadlock, BUT the frozen DETERMINISTIC policy loses the guarantee: pid worst
+> 0.362±0.234 ≈ soft 0.379±0.185 (pairwise pid better only 4/6), NO run ≤ε; held-out is
+> worse (0.65–0.70). Mechanism: the CMDP certified the STOCHASTIC behaviour policy
+> μ+N(0,0.3) — exploration noise performs implicit coordination (RB symmetry-breaking);
+> noise-off deploys a different, uncertified policy. (iii) PENDING (decisive): evaluate the
+> frozen STOCHASTIC policy (eval with σ=0.3, + a small σ sweep) — expected to restore ≈ε;
+> would make the deployment claim "deploy the randomized policy" and turn the
+> determinization gap into an honest finding. **Until then, state claims 1–3 as
+> training-level only.**
 >
 > **Reduced/retired claims:** "infeasibility frontier" (→ trainability frontier);
 > `--aoi_floor` safeguard (unneeded, harmful under PID); "PID beats integral on
@@ -124,7 +156,7 @@ flat in `model/`.
 | `hard_seedN_t8e10_pid_ep600_glmean`, `..._glmax` | 2–7 | **600 ep**, single global λ | ablation #3 (claim 6): per-platoon vs global multiplier |
 | `soft_seedN_qind_w{2,5,10,20}_ep600` | 2–7 | **600 ep**, fixed-weight 1{AoI>τ} penalty | ablation #4 (claim 7): fixed-weight penalty vs dual |
 | `ScenarioSweep/ *_rb{2,3,4}_pl{4,5,6}` (4 arms) | 2,3,4 | **600 ep**, varies n_RB/platoons | resource-frontier sweep (self-contained; scripts + report inside the folder) |
-| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval | deployment-level test of claims 1–3. COLD-start eval (plain `*_test*`) deadlocked the greedy frozen policy (synchronized AoI=100 boot — documented caveat, NOT a steady-state result); WARM-start re-eval (`*_test_warm*`) is the deployment claim |
+| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval (A in-dist `*_test*`, B held-out `*_holdout_s{12,13,14}`) | deployment-level test of claims 1–3. COLD boot (plain `*_test*`) = deadlock artifact; WARM (`*_test_warm*`, eval-only from checkpoints) = deterministic policy LOSES the guarantee (pid 0.362 ≈ soft 0.379, no run ≤ε); stochastic-policy eval (σ>0) PENDING — see header box |
 
 **Which data backs which claim** (canonical = ep600 t8e10 three-arm, seeds 2–7):
 - Claim 1 (soft hides starvation): `soft_*_base_ep600`.
@@ -140,7 +172,7 @@ flat in `model/`.
 
 ## 3. `results_remote/` — what each report proves
 
-Four live reports in `results_remote/` (table below), each auto-generated by a detached
+Six live reports in `results_remote/` (table below), each auto-generated by a detached
 driver then committed; all numbers cross-checked against raw `.mat`. (Chronological batch
 logs — early rows may report numbers later superseded; trust the findings box above + the
 Manuscript canon.) Retired process reports moved to `model/Legacy_300ep/` (incl. the 300ep
@@ -153,6 +185,8 @@ headline `RQ1_REMOTE_REPORT.md` under `claim4_support/`); the scenario-sweep rep
 | `RQ1_SEED2_INFEAS_REPORT.md` | seed2 1000-ep | seed2-pl2 under-trained NOT infeasible → no true-infeasible platoon |
 | `RQ1_ABLATION3_GLOBAL_LAMBDA.md` | per-platoon vs global λ, 6 seeds, ep600 | claim 6: a single global multiplier fails; per-platoon is necessary |
 | `RQ1_ABLATION4_FIXEDWEIGHT.md` | fixed-weight penalty (w 2/5/10/20), ep600 | claim 7: no fixed weight matches the dual (worst-case seed ≥0.25 vs 0.165) |
+| `RQ1_DEPLOY_EVAL_AB.md` | frozen DETERMINISTIC eval, COLD boot, 12 runs | the cold synchronized AoI=100 boot deadlocks the greedy policy (artifact: same convoys train at AoI≈4) |
+| `RQ1_DEPLOY_EVAL_WARM.md` | frozen DETERMINISTIC eval, WARM start (eval-only from checkpoints) | deadlock removed, but deterministic deployment loses the guarantee (pid 0.362±0.234 ≈ soft; no run ≤ε) → stochastic-policy eval pending |
 
 **Retired to `model/Legacy_300ep/`** (with their figs + scripts): `RQ1_STABILITY_REPORT.md`
 (σ-anneal — rejected), `RQ1_PHASE_PID_REPORT.md` (τ/ε phase — superseded by
@@ -204,16 +238,23 @@ the whole point. Honest negative findings (a claim weaker than stated) must be r
 
 ---
 
-## 5. Still open (not done; candidates for the next phase)
+## 5. Next steps (priority order)
 
-- **Real 3GPP PRR as a second cost head** (current `V2V_success` is a delivery proxy) —
-  the biggest gap; turns single-constraint AoI into a true multi-constraint CMDP.
-- **Power as an explicit constraint** — the AoI guarantee currently spends ~25% power;
-  test whether it survives a power cap.
-- **Generalisation sweep: RB / platoon count** — only the single 3-RB/5-platoon scenario
-  is tested (which has no true-infeasible platoon); a richer scenario is needed to exhibit
-  a genuine resource frontier.
-- **Tighter CIs / more seeds** for the worst-platoon gap and the PID phase frontier.
-- **Optional:** a fixed-bug ablation (un-detach the global critic) to show the result is
-  independent of the global-critic path; reuse the cost-critic + per-platoon-λ machinery
-  for RQ2 (CAM/DENM traffic classes) and RQ3.
+1. **DECISIVE — stochastic-policy deployment eval.** Add an eval-noise option (deploy the
+   certified behaviour policy μ+N(0,σ)), then eval-only re-run of the 12 `ep600_deploy`
+   policies with σ=0.3 (+ small sweep σ∈{0.05,0.1}): settles whether the deployment claim
+   is "deploy the randomized policy, guarantee preserved" or the certificate needs online
+   adaptation. Minutes per run (checkpoints exist). This decides how claims 1–3 may be
+   stated beyond training level.
+2. **claim-4 600-ep support** (planned retrain of the 300-ep integral-vs-PID comparison,
+   currently archived in `Legacy_300ep/claim4_support/`). Any retrain now auto-produces
+   the new `critic_loss_cost.mat`/`cost_force.mat` diagnostics (the cost-critic convergence
+   curve rides along for free).
+3. **Scenario-sweep firm-up** (optional): more seeds in the binding band (load 1.5–2.5)
+   and/or seed2 at ep1000, to harden finding 8 beyond n=3 and quantify the divergence rate.
+4. **Real 3GPP PRR as a second cost head** (delivery proxy → true multi-constraint CMDP) —
+   the biggest methodological gap for a journal version.
+5. **Power as an explicit constraint** (does the AoI guarantee survive a power cap? —
+   would fully neutralize the "+25% power" trade-off critique).
+6. **Optional:** fixed-bug ablation (un-detach the global critic); reuse the cost-critic +
+   per-platoon-λ machinery for RQ2 (CAM/DENM classes) and RQ3.

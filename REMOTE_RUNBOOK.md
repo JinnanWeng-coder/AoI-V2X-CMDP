@@ -5,9 +5,10 @@
 > [`CLAUDE.md`](CLAUDE.md) first; for the *method and code* read
 > [`ARCHITECTURE.md`](ARCHITECTURE.md). Replaces the old `results_remote/HANDOVER.md`.
 
-The RQ1 campaign is **complete** (175 runs on disk; see CLAUDE.md). Nothing is in
-flight. This runbook is the reusable procedure for any *new* batch (e.g. a new ablation
-or a horizon extension).
+Training-level campaign **complete** (283 runs on disk, incl. `model/ScenarioSweep/` and
+`model/ep600_deploy/`; see CLAUDE.md for the findings ledger). Current phase:
+**frozen-deployment evaluation** — the next batch is the stochastic-policy eval
+(eval-only, no retraining). This runbook is the reusable procedure for any batch.
 
 ---
 
@@ -54,6 +55,22 @@ python Main.py --mode hard --tau 8 --eps 0.10 --dual pid --kp 1.0 --ki 1.0 --kd 
   `--aoi_pen_type indicator --aoi_pen_w`) and the `--out_tag` suffix; keep everything
   else byte-identical to the matching existing arm so it stays a single-variable change.
 - Smoke first (seconds, not a result): `python Main.py --mode hard --smoke`.
+
+### 2.1 Frozen-deployment eval / eval-only (no retraining)
+
+For any run whose per-run checkpoints still exist (`Classes/tmp/ddpg_<name>/`,
+actor_0–4 files present):
+```
+$env:RQ1_CKPT_SUBDIR='tmp/ddpg_<that run's subdir>'
+python Main.py --mode <soft|hard> --tau 8 [--eps 0.10 --dual pid] --seed <s> \
+    --eval_only --eval_episodes 100 --eval_warmup 5 --eval_holdout_seeds 12,13,14 \
+    --out_subdir ep600_deploy --out_tag <same tag as the run>
+```
+Minutes per run. Writes `*_test_warm*.mat` into the existing run dir (warm start is the
+default; `--eval_start cold` reproduces the legacy cold-boot `*_test*.mat` names). The
+eval phase is fully frozen: noise=0 (unless a future eval-noise flag is used), no
+learning, no dual update, no buffer writes. NEVER delete or overwrite an existing
+`*_test*` file of the other start mode.
 
 ---
 
