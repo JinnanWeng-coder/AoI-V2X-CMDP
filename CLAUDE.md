@@ -138,11 +138,14 @@ penalty) or `hard` (per-platoon CMDP). `<tag>` encodes (τ,ε) and variant:
 (horizon), `_glmean`/`_glmax` (ablation #3 single global λ, `--lam_scope`). No suffix on
 a hard run = integral dual, 300 ep. soft tag is `_base` (raw −AoI/20) or `_qind_w{w}`
 (ablation #4 fixed-weight 1{AoI>τ} penalty, `--aoi_pen_type indicator --aoi_pen_w`); the
-scenario sweep adds `_rb{R}_pl{P}` (`--n_RB`/`--n_veh`). Two **subfolders** group
-self-contained / retired sets — `model/ScenarioSweep/` (resource-frontier sweep, with its
-own scripts + report) and `model/Legacy_300ep/` (retired 300-ep process runs: τ/ε phase
-non-(8,10) cells, σ-anneal, floor — with their scripts/figs/reports). Everything else is
-flat in `model/`.
+scenario sweep adds `_rb{R}_pl{P}` (`--n_RB`/`--n_veh`). **Every run now lives in a study
+subfolder of `model/`** (no loose runs in root): `Canonical_ep600/` (the 3-arm reference),
+`Ablations_ep600/{global_lambda,fixed_weight}/` (#3/#4), `Feasibility_ep1000/` (seed2
+1000-ep), `ScenarioSweep/` (resource frontier), `ep600_deploy/` (deployment eval),
+`Legacy_300ep/` (retired 300-ep + `claim4_support/`). **Full map: `model/MANIFEST.md`.** A
+run's folder is organizational ONLY — the analysis/figure scripts resolve a run by NAME
+anywhere under `model/` (and new runs can target a folder with `--out_subdir`), so the
+by-name references in the table/claim-map below stay valid regardless of folder.
 
 | run-class (tag) | seeds | conditions | what it tests |
 |---|---|---|---|
