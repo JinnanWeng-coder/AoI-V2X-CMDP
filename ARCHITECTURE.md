@@ -121,6 +121,7 @@ identical between modes, so any difference in results is from the AoI handling a
 | `--eval_holdout_seeds` | "" | comma-separated held-out seeds → Experiment B (fresh `new_random_game` per seed) |
 | `--eval_start {warm,cold}` | warm | eval initial AoI: warm=1 slot (steady-state; files `*_test_warm*.mat`), cold=100 (legacy cold-boot, plain `*_test*.mat` — deadlocks the greedy policy; kept as the documented caveat) |
 | `--eval_only` | off | skip training; load this run's checkpoints (env var `RQ1_CKPT_SUBDIR`) and run only the eval |
+| `--eval_noise` | 0.0 | actor exploration σ **during eval**: 0=deterministic greedy; >0 deploys the STOCHASTIC policy μ(s)+N(0,σ) — the policy the CMDP actually certified (σ=0.3). Files get a `_n{σ·100}` suffix (e.g. `*_test_warm_n30*`) so they never overwrite the greedy results |
 | `--smoke` | off | tiny end-to-end wiring test (≈seconds; NOT a result) |
 
 **Locked config for the campaign (do NOT recalibrate):** τ=8, ε=0.10, λ_max=20,

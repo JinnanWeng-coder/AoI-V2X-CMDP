@@ -113,6 +113,12 @@ parser.add_argument('--eval_only', action='store_true',
                     help='[RQ1-CMDP] skip training; load checkpoints (RQ1_CKPT_SUBDIR) and run only the frozen eval')
 parser.add_argument('--out_subdir', type=str, default='',
                     help='[RQ1-CMDP] optional subfolder under model/ for all outputs (e.g. ep600_deploy)')
+# [RQ1-CMDP] eval-time exploration noise: 0.0 (default) = deterministic greedy deployment;
+#   >0 deploys the STOCHASTIC policy mu(s)+N(0,sigma) — the policy the CMDP actually certified
+#   during training (sigma=0.3). Files get a _n{sigma*100} suffix so they NEVER overwrite the
+#   deterministic (greedy) results.
+parser.add_argument('--eval_noise', type=float, default=0.0,
+                    help='[RQ1-CMDP] actor exploration sigma DURING eval (0=greedy; e.g. 0.3 = certified stochastic policy)')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -335,7 +341,7 @@ def run_frozen_eval(n_eval, warmup, reseed=None):
         T.manual_seed(reseed)
         env.new_random_game()
     for ag in agents:
-        ag.noise = 0.0                                  # deterministic actor (no exploration)
+        ag.noise = args.eval_noise                      # 0 = deterministic greedy; >0 = certified stochastic policy
     total = int(n_eval + warmup)
     aoi_evo = np.zeros([n_platoon, total, n_step_per_episode], dtype=np.float16)
     pow_evo = np.zeros([n_platoon, total, n_step_per_episode], dtype=np.float16)
@@ -376,6 +382,8 @@ def run_frozen_eval(n_eval, warmup, reseed=None):
 # cold-boot results are never overwritten.
 def run_deploy_eval_suite():
     sfx = '_warm' if args.eval_start == 'warm' else ''
+    if args.eval_noise > 0:
+        sfx = sfx + ('_n%d' % round(args.eval_noise * 100))   # e.g. _warm_n30 for sigma=0.3
     ed = os.path.join(current_dir, "model", label)
     os.makedirs(ed, exist_ok=True)
     print('=== [RQ1-CMDP] frozen-deployment eval A (in-distribution, %s start) ===' % args.eval_start)

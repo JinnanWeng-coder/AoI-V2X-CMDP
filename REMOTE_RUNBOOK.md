@@ -68,9 +68,11 @@ python Main.py --mode <soft|hard> --tau 8 [--eps 0.10 --dual pid] --seed <s> \
 ```
 Minutes per run. Writes `*_test_warm*.mat` into the existing run dir (warm start is the
 default; `--eval_start cold` reproduces the legacy cold-boot `*_test*.mat` names). The
-eval phase is fully frozen: noise=0 (unless a future eval-noise flag is used), no
-learning, no dual update, no buffer writes. NEVER delete or overwrite an existing
-`*_test*` file of the other start mode.
+eval phase is fully frozen — no learning, no dual update, no buffer writes. Action noise
+is deterministic by default (`--eval_noise 0`); set `--eval_noise σ` (e.g. 0.3) to deploy
+the certified STOCHASTIC policy, which writes a separate `_n{σ·100}` suffix
+(`*_test_warm_n30*`). NEVER delete or overwrite an existing `*_test*` file of another
+start/noise mode.
 
 ---
 
