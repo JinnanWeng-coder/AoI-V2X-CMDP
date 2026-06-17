@@ -1,11 +1,12 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
 > ## RQ1 STATUS (2026-06-17) — training-level campaign COMPLETE (findings 1–8 settled);
-> ## frozen-DEPLOYMENT evaluation UNDER INVESTIGATION: worst-platoon protection DEGRADES when
-> ## the policy is frozen — modestly for 4/6 seeds (net-mean ≈ ε), catastrophically for 2/6
-> ## (s2, s5; s2 is the under-trained seed), via a marginal platoon tipping over; re-injecting
-> ## the certified σ=0.3 noise does NOT fix it. CAUSE NOT YET DISCRIMINATED (under-training vs
-> ## online-dual dependence). Claims 1–3 remain training-level pending that. §5
+> ## frozen-DEPLOYMENT evaluation RESOLVED (positive): on the CERTIFIED geometry (seamless
+> ## continuation of the training trajectory, frozen, σ=0.3) the per-platoon CMDP's worst-platoon
+> ## protection SURVIVES — pooled gap soft−pid **+0.237 ≈ training +0.228** — at a modest residual
+> ## cost (pid worst 0.126→0.198, still >ε). The earlier "guarantee lost" (eval pid 0.348≈soft)
+> ## was a `--eval_only` geometry-RESTART artifact (raw-`.mat` verified). Claims 1–3 hold under
+> ## in-trajectory frozen deployment (NOT a cross-scenario-generalization claim). §5 / deploy ledger
 >
 > Terminology: **platoon = a convoy of vehicles (1 leader + followers); NOT a
 > software "platform".** Throughout, "per-platoon" means per-convoy.
@@ -75,30 +76,27 @@
 > 21.5→10.7; most dramatic seed2 convoy: 12.6→3.3, per-step peak 83→25. The diluted
 > network-mean (5.4→4.4, −19%) under-sells the same result.
 >
-> **DEPLOYMENT EVALUATION (`ep600_deploy/`) — UNDER INVESTIGATION (σ-eval done; cause open):**
-> claims 1–3 are TRAINING-level (recorded with exploration noise σ=0.3 while weights+λ still
-> update). Frozen-deployment tests: (i) COLD synchronized boot (AoI=100; plain `*_test*.mat`)
-> deadlocks the greedy deterministic policy — a boot-protocol artifact (the same convoys
-> train at AoI≈4), kept as a documented caveat. (ii) WARM start (`*_test_warm*.mat`)
-> removes the deadlock, BUT the frozen DETERMINISTIC policy loses the worst-platoon guarantee:
-> pid worst 0.362±0.234 ≈ soft 0.379±0.185 (pairwise pid better only 4/6), NO run ≤ε; held-out
-> worse (0.65–0.70). Mechanism hypothesis: the CMDP certified the STOCHASTIC behaviour policy
-> μ+N(0,0.3) — exploration noise performs implicit coordination (RB symmetry-breaking);
-> noise-off deploys a different, uncertified policy. (iii) σ-eval (DONE, cause OPEN): redeploy
-> the certified STOCHASTIC policy μ+N(0,σ), σ∈{0,0.05,0.1,0.3}, eval-only WARM on the 12
-> checkpoints — re-injecting the certification noise does **NOT** recover the worst-platoon
-> guarantee (pooled eval-A pid 0.362→0.348 ≈ soft 0.379→0.327; gap soft−pid +0.228→−0.022;
-> 0/192 configs ≤ε). **BUT the failure is seed-heterogeneous and concentrated in 1–2 marginal
-> platoons, NOT a network collapse:** at σ=0.3, 4/6 pid seeds degrade only mildly (worst
-> 0.19–0.24, **net-mean ≈ ε**) while 2/6 blow up (s2 0.69, s5 0.56) and drag the pool; the
-> tipping platoon DIFFERS from the training-worst platoon (s2 pl4→pl0, s5 pl0→pl2), and **s2 is
-> the documented under-trained seed (finding 5)** — i.e. a partial regression toward the
-> claim-1 failure mode (mean fine, one platoon starved). **CAUSE NOT YET DISCRIMINATED:**
-> under-training/residual-robustness (→ retrain s2/s5 longer, cf. finding 5) vs a genuine
-> online-dual dependence (→ light online-dual at deployment). Until a discriminating run,
-> state claims 1–3 as training-level only; **do NOT claim "online-only."** All σ-eval numbers
-> locally re-verified from raw `.mat` (`results_remote/RQ1_DEPLOY_EVAL_NOISE.md`; verifier +
-> σ-sweep fig + per-seed breakdown in `tmp_scripts/`).
+> **DEPLOYMENT EVALUATION — RESOLVED (positive; protection survives frozen in-trajectory
+> deployment):** claims 1–3 are recorded at training (σ=0.3, weights+λ still updating). The
+> deployment question went through three stages: (i) COLD synchronized boot (AoI=100; plain
+> `*_test*.mat`) deadlocks the greedy policy — a boot-protocol artifact (same convoys train at
+> AoI≈4), documented caveat. (ii) WARM `--eval_only` (`ep600_deploy/`, `*_test_warm*`): the
+> frozen policy appeared to LOSE the guarantee — pid worst 0.362≈soft 0.379, and a σ-sweep
+> (`*_n{5,10,30}`, μ+N(0,σ), σ∈{0,…,0.3}) did NOT recover it (pid 0.348≈soft 0.327; gap
+> +0.228→−0.022; 0/192 ≤ε). **(iii) ROOT CAUSE = an eval-protocol artifact, not a real failure.**
+> `--eval_only` RESTARTS the scenario from the seed's INITIAL geometry (Main.py ~L668), i.e. it
+> tests the certified policy ~30–45m off the trajectory it was certified on. The SEAMLESS re-run
+> (`Deploy_seamless_800ep/`: train 600 == canonical [acceptance-gated, bit-exact], then continue
+> the SAME env FROZEN 200 ep at σ=0.3, AoI not reset) shows the protection **SURVIVES** on the
+> certified geometry: pooled worst-platoon **soft 0.435 vs pid 0.198, gap +0.237 ≈ training
+> +0.228**; the "catastrophic" seeds recover (s2 0.69→0.18, s5 0.56→0.31). All raw-`.mat`
+> verified (`tmp_scripts/verify_seamless_eval.py`; report `results_remote/RQ1_DEPLOY_SEAMLESS.md`).
+> **HONEST residual:** pid worst still degrades 0.126→**0.198** (>ε) when learning stops — a
+> modest online→frozen gap (+0.072), not a collapse; s5 stays elevated (0.31); and this is
+> IN-TRAJECTORY deployment (the convoy continues its route, drift ~10–15m over 200 ep), **NOT a
+> cross-scenario-generalization claim** (held-out B deliberately not run). So: state claims 1–3
+> as surviving frozen in-trajectory deployment with a modest absolute-level cost; do NOT state
+> "guarantee lost" (artifact) nor "deploys at ε" (it's 0.198).
 >
 > **Reduced/retired claims:** "infeasibility frontier" (→ trainability frontier);
 > `--aoi_floor` safeguard (unneeded, harmful under PID); "PID beats integral on
@@ -173,7 +171,7 @@ by-name references in the table/claim-map below stay valid regardless of folder.
 | `hard_seedN_t8e10_pid_ep600_glmean`, `..._glmax` | 2–7 | **600 ep**, single global λ | ablation #3 (claim 6): per-platoon vs global multiplier |
 | `soft_seedN_qind_w{2,5,10,20}_ep600` | 2–7 | **600 ep**, fixed-weight 1{AoI>τ} penalty | ablation #4 (claim 7): fixed-weight penalty vs dual |
 | `ScenarioSweep/ *_rb{2,3,4}_pl{4,5,6}` (4 arms) | 2,3,4 | **600 ep**, varies n_RB/platoons | resource-frontier sweep (self-contained; scripts + report inside the folder) |
-| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval (A in-dist `*_test*`, B held-out `*_holdout_s{12,13,14}`) | deployment-level test of claims 1–3. COLD boot (plain `*_test*`) = deadlock artifact; WARM (`*_test_warm*`, eval-only from checkpoints) = deterministic policy LOSES the guarantee (pid 0.362 ≈ soft 0.379, no run ≤ε); σ-eval (`*_test_warm_n{5,10,30}*`, certified stochastic policy μ+N(0,σ)) does NOT recover it (gap +0.228→−0.022, 0/192 ≤ε) but failure is seed-heterogeneous / 1–2 marginal platoons (4/6 seeds net-mean≈ε; s2/s5 catastrophic) — cause (under-training vs online-dual) under investigation, see header box |
+| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval (A in-dist `*_test*`, B held-out `*_holdout_s{12,13,14}`) | deployment-level test of claims 1–3. COLD boot (plain `*_test*`) = deadlock artifact; WARM (`*_test_warm*`, eval-only from checkpoints) = deterministic policy LOSES the guarantee (pid 0.362 ≈ soft 0.379, no run ≤ε); σ-eval (`*_test_warm_n{5,10,30}*`) also doesn't recover it (gap −0.022) — **but this is an eval-protocol artifact: `--eval_only` restarts from the seed's INITIAL geometry (Main.py ~L668).** The SEAMLESS re-run (`Deploy_seamless_800ep/`, certified geometry) shows protection SURVIVES: gap soft−pid +0.237 ≈ training +0.228 (pid worst 0.198, residual +0.072 over training). See header box + `Deploy_seamless_800ep/` row in `model/MANIFEST.md` |
 
 **Which data backs which claim** (canonical = ep600 t8e10 three-arm, seeds 2–7):
 - Claim 1 (soft hides starvation): `soft_*_base_ep600`.
@@ -204,7 +202,8 @@ headline `RQ1_REMOTE_REPORT.md` under `claim4_support/`); the scenario-sweep rep
 | `RQ1_ABLATION4_FIXEDWEIGHT.md` | fixed-weight penalty (w 2/5/10/20), ep600 | claim 7: no fixed weight matches the dual (worst-case seed ≥0.25 vs 0.165) |
 | `RQ1_DEPLOY_EVAL_AB.md` | frozen DETERMINISTIC eval, COLD boot, 12 runs | the cold synchronized AoI=100 boot deadlocks the greedy policy (artifact: same convoys train at AoI≈4) |
 | `RQ1_DEPLOY_EVAL_WARM.md` | frozen DETERMINISTIC eval, WARM start (eval-only from checkpoints) | deadlock removed, but deterministic deployment loses the guarantee (pid 0.362±0.234 ≈ soft; no run ≤ε) → stochastic-policy σ-eval (below) |
-| `RQ1_DEPLOY_EVAL_NOISE.md` | frozen STOCHASTIC eval, WARM, σ∈{0,0.05,0.1,0.3} (eval-only, certified μ+N(0,σ)) | re-injecting the certification noise does NOT recover the worst-platoon guarantee (pid≈soft at every σ; gap +0.228→−0.022; 0/192 configs ≤ε) — but failure is seed-heterogeneous / 1–2 marginal platoons (4/6 seeds net-mean≈ε; s2/s5 catastrophic, s2 under-trained); cause (under-training vs online-dual) UNDER INVESTIGATION |
+| `RQ1_DEPLOY_EVAL_NOISE.md` | frozen STOCHASTIC eval, WARM, σ∈{0,0.05,0.1,0.3} (eval-only, certified μ+N(0,σ)) | σ-sweep does not recover the apparent loss (gap −0.022; 0/192 ≤ε) — later shown to be a geometry-restart artifact (see SEAMLESS row) |
+| `RQ1_DEPLOY_SEAMLESS.md` | frozen SEAMLESS deployment (`Deploy_seamless_800ep/`: train 600 == canonical, then frozen 200-ep tail on the SAME env, σ=0.3, AoI not reset) | **the resolution:** on the CERTIFIED geometry the per-platoon protection SURVIVES — soft 0.435 vs pid 0.198, **gap +0.237 ≈ training +0.228**; the eval_only "loss" was the geometry-restart artifact. Residual: pid 0.126→0.198 (>ε); in-trajectory, not cross-scenario. Acceptance gate: first-600 == Canonical_ep600 (bit-exact). raw-`.mat` verified |
 
 **Retired to `model/Legacy_300ep/`** (with their figs + scripts): `RQ1_STABILITY_REPORT.md`
 (σ-anneal — rejected), `RQ1_PHASE_PID_REPORT.md` (τ/ε phase — superseded by
@@ -258,28 +257,21 @@ the whole point. Honest negative findings (a claim weaker than stated) must be r
 
 ## 5. Next steps (priority order)
 
-1. **σ-eval DONE, CAUSE OPEN — stochastic-policy deployment eval.** Eval-noise option added
-   (`--eval_noise σ`, commit `9de5ab1`); eval-only σ∈{0,0.05,0.1,0.3} re-run of the 12
-   `ep600_deploy` policies (`353cbbf`), locally re-verified from raw `.mat`. Re-injecting the
-   certified σ=0.3 noise does NOT recover the worst-platoon guarantee (gap +0.228→−0.022;
-   0/192 configs ≤ε), BUT the failure is seed-heterogeneous: 4/6 pid seeds degrade only
-   mildly (worst 0.19–0.24, net-mean ≈ ε), only s2/s5 are catastrophic (on a shifting marginal
-   platoon; s2 is the under-trained seed). **Discriminate the cause before any claim change:**
-   (a) retrain s2/s5 longer (ep1000, cf. finding 5) + re-eval → tests under-training; (b) LIGHT
-   online-dual at deployment (freeze policy, keep λ_j updating) → if it cheaply recovers the
-   marginal platoons, this becomes a positive "online-dual deployment" contribution. Both need
-   a remote batch; first deepen the local `.mat` analysis (AoI traces of the tipping platoons,
-   end-of-training λ_j trajectories).
-   **Mechanism caveat found while scoping this (Main.py ~L668):** the `--eval_only` σ-eval
-   RESTARTS the scenario from the seed's INITIAL geometry (not the certified training-end
-   geometry) and resets AoI=1 — two confounds. **IMPLEMENTED FIX → `Deploy_seamless_800ep`:**
-   new flags `--seamless_tail N` / `--seamless_noise σ` / `--seamless_resume PKL` (Main.py)
-   train 600 ep (== canonical, acceptance-gated) then continue the SAME env FROZEN for 200 ep
-   at σ=0.3 with AoI NOT reset, and dump `Scenario_Reconstruct.pkl` (env+RNG+dual) so a later
-   batch branches from the exact ep600 state (σ-sweep / online-dual) — resume verified
-   bit-exact locally. Driver `results_remote/scripts/deploy_seamless_driver.ps1` +
-   `analyze_seamless.py`. **This is now the FIRST discriminating run** (does the guarantee
-   survive frozen deployment on the certified geometry?); run it on the remote before (a)/(b).
+1. **DEPLOYMENT — RESOLVED (positive).** The frozen-deployment question is settled. The
+   `--eval_only` σ-eval (`9de5ab1`/`353cbbf`) appeared to lose the guarantee (gap +0.228→−0.022,
+   0/192 ≤ε), but that was an EVAL-PROTOCOL ARTIFACT: `--eval_only` restarts the scenario from the
+   seed's INITIAL geometry (Main.py ~L668), ~30–45m off the certified trajectory. The SEAMLESS
+   re-run (`Deploy_seamless_800ep/`, commits up to `bae6494`: train 600 == canonical [acceptance
+   gate bit-exact], then frozen 200-ep tail on the SAME env at σ=0.3, AoI not reset; flags
+   `--seamless_tail/--seamless_noise/--seamless_resume`, `Scenario_Reconstruct.pkl`) shows the
+   per-platoon protection SURVIVES on the certified geometry: **soft 0.435 vs pid 0.198, gap
+   +0.237 ≈ training +0.228**; s2 0.69→0.18, s5 0.56→0.31. Raw-`.mat` verified
+   (`tmp_scripts/verify_seamless_eval.py`; `results_remote/RQ1_DEPLOY_SEAMLESS.md`). **Residual
+   (state honestly):** pid worst still 0.126→0.198 (>ε) when learning stops (+0.072 online→frozen
+   gap; s5 stays elevated), and this is IN-TRAJECTORY deployment, NOT cross-scenario
+   generalization (held-out B not run). **No further deployment runs planned.** Optional only
+   (the `Scenario_Reconstruct.pkl` enables both cheaply via `--seamless_resume`, no retrain):
+   a σ-sweep on the certified geometry, or a light online-dual to close the residual +0.072.
 2. **claim-4 600-ep support** (planned retrain of the 300-ep integral-vs-PID comparison,
    currently archived in `Legacy_300ep/claim4_support/`). Any retrain now auto-produces
    the new `critic_loss_cost.mat`/`cost_force.mat` diagnostics (the cost-critic convergence
