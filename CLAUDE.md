@@ -270,6 +270,16 @@ the whole point. Honest negative findings (a claim weaker than stated) must be r
    marginal platoons, this becomes a positive "online-dual deployment" contribution. Both need
    a remote batch; first deepen the local `.mat` analysis (AoI traces of the tipping platoons,
    end-of-training λ_j trajectories).
+   **Mechanism caveat found while scoping this (Main.py ~L668):** the `--eval_only` σ-eval
+   RESTARTS the scenario from the seed's INITIAL geometry (not the certified training-end
+   geometry) and resets AoI=1 — two confounds. **IMPLEMENTED FIX → `Deploy_seamless_800ep`:**
+   new flags `--seamless_tail N` / `--seamless_noise σ` / `--seamless_resume PKL` (Main.py)
+   train 600 ep (== canonical, acceptance-gated) then continue the SAME env FROZEN for 200 ep
+   at σ=0.3 with AoI NOT reset, and dump `Scenario_Reconstruct.pkl` (env+RNG+dual) so a later
+   batch branches from the exact ep600 state (σ-sweep / online-dual) — resume verified
+   bit-exact locally. Driver `results_remote/scripts/deploy_seamless_driver.ps1` +
+   `analyze_seamless.py`. **This is now the FIRST discriminating run** (does the guarantee
+   survive frozen deployment on the certified geometry?); run it on the remote before (a)/(b).
 2. **claim-4 600-ep support** (planned retrain of the 300-ep integral-vs-PID comparison,
    currently archived in `Legacy_300ep/claim4_support/`). Any retrain now auto-produces
    the new `critic_loss_cost.mat`/`cost_force.mat` diagnostics (the cost-critic convergence

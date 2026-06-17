@@ -8,6 +8,7 @@ from local_critic import Agent
 from global_critic import Global_Critic
 from Classes.buffer import ReplayBuffer
 import random
+import pickle
 import torch as T
 
 try:
@@ -119,6 +120,20 @@ parser.add_argument('--out_subdir', type=str, default='',
 #   deterministic (greedy) results.
 parser.add_argument('--eval_noise', type=float, default=0.0,
                     help='[RQ1-CMDP] actor exploration sigma DURING eval (0=greedy; e.g. 0.3 = certified stochastic policy)')
+# [RQ1-CMDP] SEAMLESS frozen-deployment tail (Deploy_seamless_800ep study). After the normal
+#   training loop, KEEP the SAME env (positions / AoI / channels carried over from the end of
+#   training) and continue the renew_positions-every-20-ep drive for N more episodes, but FREEZE
+#   the policy (no learning, no dual, no buffer). AoI is NOT reset -> a true seamless continuation
+#   on the geometry the policy was CERTIFIED on (unlike --eval_only which restarts from the seed's
+#   initial geometry, Main.py ~L668). Default 0 = off (training path byte-for-byte unchanged).
+#   At ep_offset it also dumps Scenario_Reconstruct.pkl (full env + RNG + dual state) so a later
+#   batch can branch from the exact ep600 state (sigma-sweep / online-dual) via --seamless_resume.
+parser.add_argument('--seamless_tail', type=int, default=0,
+                    help='[RQ1-CMDP] frozen continuation episodes after training (same env, no AoI reset, no learning/dual/buffer); 0=off')
+parser.add_argument('--seamless_noise', type=float, default=0.3,
+                    help='[RQ1-CMDP] actor sigma during the seamless tail (default 0.3 = the certified stochastic policy)')
+parser.add_argument('--seamless_resume', type=str, default='',
+                    help='[RQ1-CMDP] path to a Scenario_Reconstruct.pkl: restore env+RNG+dual, load checkpoints, run a frozen tail from the saved ep_offset (no training). Writes *_seamless_n{NN}.mat')
 args = parser.parse_args()
 
 CONSTRAINT_MODE = args.mode
@@ -164,7 +179,7 @@ print('right_lanes :', right_lanes)
 print('------------------------------------')
 width = 750 / 2
 height = 1298 / 2
-IS_TRAIN = 0 if args.eval_only else 1   # [RQ1-CMDP] --eval_only skips training
+IS_TRAIN = 0 if (args.eval_only or args.seamless_resume) else 1   # [RQ1-CMDP] --eval_only / --seamless_resume skip training
 IS_TEST = 1 - IS_TRAIN
 label = 'marl_model_' + CONSTRAINT_MODE + '_seed' + str(SEED)   # [RQ1-CMDP] separate soft/hard/seed outputs
 if args.out_tag:                                               # [RQ1-CMDP] further isolate by tau/eps/floor
@@ -407,6 +422,81 @@ def run_deploy_eval_suite():
         scipy.io.savemat(os.path.join(ed, 'viol_rate_test%s_holdout_s%d.mat' % (sfx, hs)), {'viol_rate_test': viol_h})
         print('  eval B%s(s%d): worst-platoon viol = %.3f  net-mean = %.3f  mean power = %.2f'
               % (sfx, hs, float(viol_h.max()), float(viol_h.mean()), float(pow_h.mean())))
+
+
+# [RQ1-CMDP] SEAMLESS frozen continuation tail. Keep the CURRENT env (do NOT reseed, do NOT
+#   new_random_game, do NOT reset AoI): the policy continues on the very geometry it was
+#   certified on, vehicles keep driving (renew_positions every 20 ep). FREEZE the policy: no
+#   buffer writes, no global_learn, no dual update. ep_offset keeps the every-20 renew cadence
+#   in phase with training (trained ep 0..N-1 -> tail ep N.. ). The per-step env stepping mirrors
+#   run_frozen_eval / the training loop EXACTLY (only learning removed).
+def run_seamless_tail(n_tail, ep_offset, noise):
+    for ag in agents:
+        ag.noise = noise
+    aoi_evo = np.zeros([n_platoon, n_tail, n_step_per_episode], dtype=np.float16)
+    pow_evo = np.zeros([n_platoon, n_tail, n_step_per_episode], dtype=np.float16)
+    for t in range(n_tail):
+        ep = ep_offset + t
+        env.V2V_demand = env.V2V_demand_size * np.ones(n_platoon, dtype=np.float16)
+        env.individual_time_limit = env.time_slow * np.ones(n_platoon, dtype=np.float16)
+        env.active_links = np.ones((int(env.n_Veh / env.size_platoon)), dtype='bool')
+        if ep % 20 == 0:
+            env.renew_positions()
+            env.renew_channel(n_veh, size_platoon)
+            env.renew_channels_fastfading()
+        state_old = [get_state(env=env, idx=i) for i in range(n_platoon)]
+        for i_step in range(n_step_per_episode):
+            at = np.zeros([n_platoon, n_output], dtype=int)
+            for i in range(n_platoon):
+                a = np.clip(agents[i].choose_action(state_old[i]), -0.999, 0.999)
+                at[i, 0] = ((a[0] + 1) / 2) * n_RB
+                at[i, 1] = ((a[1] + 1) / 2) * n_S
+                at[i, 2] = np.round(np.clip(((a[2] + 1) / 2) * max_power, 1, max_power))
+            _, _, _, _, platoon_AoI, C_rate, V_rate, Demand_R, V2V_success = env.act_for_training(at.copy())
+            env.renew_channels_fastfading()
+            env.Compute_Interference(at.copy())
+            for i in range(n_platoon):
+                aoi_evo[i, t, i_step] = platoon_AoI[i]
+                pow_evo[i, t, i_step] = at[i, 2]
+            state_old = [get_state(env=env, idx=i) for i in range(n_platoon)]
+    return aoi_evo, pow_evo
+
+
+def write_seamless_outputs(run_dir, sfx, aoi_evo, pow_evo):
+    viol = (aoi_evo.astype(np.float64) > env.tau_aoi).mean(axis=(1, 2))   # per-platoon over the whole tail
+    viol_ep = (aoi_evo.astype(np.float64) > env.tau_aoi).mean(axis=2)     # per-platoon per-episode trajectory
+    scipy.io.savemat(os.path.join(run_dir, 'AoI_evolution_seamless%s.mat' % sfx), {'AoI_evolution_seamless': aoi_evo})
+    scipy.io.savemat(os.path.join(run_dir, 'power_seamless%s.mat' % sfx), {'power_seamless': pow_evo})
+    scipy.io.savemat(os.path.join(run_dir, 'viol_rate_seamless%s.mat' % sfx), {'viol_rate_seamless': viol})
+    scipy.io.savemat(os.path.join(run_dir, 'viol_rate_seamless_ep%s.mat' % sfx), {'viol_rate_seamless_ep': viol_ep})
+    print('  [seamless%s] tail viol/platoon = %s  worst = %.3f  net-mean = %.3f'
+          % (sfx, np.round(viol, 3), float(viol.max()), float(viol.mean())))
+    return viol
+
+
+def save_scenario_reconstruct(run_dir, ep_offset, lam_I_state=None, lam_err_prev_state=None):
+    # Full end-of-training snapshot so a later run can branch from the EXACT ep_offset state
+    # (sigma-sweep / online-dual) via --seamless_resume. RNG states captured HERE so a resume at
+    # the same sigma reproduces this inline tail. The whole env object is pickled (vehicles /
+    # positions / AoI / channels / shadowing), so nothing stateful is missed.
+    recon = {
+        'env': env,
+        'rng_random': random.getstate(),
+        'rng_numpy': np.random.get_state(),
+        'rng_torch': T.get_rng_state(),
+        'rng_torch_cuda': (T.cuda.get_rng_state_all() if T.cuda.is_available() else None),
+        'lam_per_platoon': np.array([agents[j].lam for j in range(n_platoon)], dtype=np.float64),
+        'lam_I': (None if lam_I_state is None else np.asarray(lam_I_state, dtype=np.float64)),
+        'lam_err_prev': (None if lam_err_prev_state is None else np.asarray(lam_err_prev_state, dtype=np.float64)),
+        'ep_offset': int(ep_offset),
+        'seed': SEED, 'mode': CONSTRAINT_MODE, 'tau': float(env.tau_aoi), 'eps': float(env.eps_viol),
+        'dual': args.dual, 'n_platoon': int(n_platoon),
+    }
+    path = os.path.join(run_dir, 'Scenario_Reconstruct.pkl')
+    with open(path, 'wb') as f:
+        pickle.dump(recon, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print('  [seamless] saved scenario reconstruct ->', path)
+    return path
 # ------------------------------------------------------------------------------------------------------------------ #
 if IS_TRAIN:
     '''
@@ -661,6 +751,17 @@ if IS_TRAIN:
     if args.eval_episodes > 0:
         run_deploy_eval_suite()
 
+    # [RQ1-CMDP] SEAMLESS frozen-deployment tail (default off; --seamless_tail 0). Runs strictly
+    #   AFTER the training loop + .mat/model save, so the first n_episode episodes are byte-for-byte
+    #   the normal training run (verify by diffing viol_rate/lambda/AoI_evolution vs Canonical_ep600).
+    #   Saves the ep-offset reconstruct, then continues the SAME env frozen for --seamless_tail eps.
+    if args.seamless_tail > 0:
+        run_dir = os.path.join(current_dir, "model", label)
+        os.makedirs(run_dir, exist_ok=True)
+        save_scenario_reconstruct(run_dir, n_episode, lam_I_state=lam_I, lam_err_prev_state=lam_err_prev)
+        aoi_tail, pow_tail = run_seamless_tail(args.seamless_tail, n_episode, args.seamless_noise)
+        write_seamless_outputs(run_dir, '', aoi_tail, pow_tail)
+
 # [RQ1-CMDP] eval-only: load the frozen policies from this run's checkpoints and run ONLY
 # the deployment eval (no training, no buffer, no dual). RQ1_CKPT_SUBDIR must point at the
 # SAME per-run checkpoint subdir the training run used (REMOTE_RUNBOOK §3). Note: eval A
@@ -672,6 +773,33 @@ if args.eval_only:
         agents[i].load_models()
     if args.eval_episodes > 0:
         run_deploy_eval_suite()
+
+# [RQ1-CMDP] SEAMLESS RESUME: branch from a saved Scenario_Reconstruct.pkl (sigma-sweep /
+#   online-dual from the EXACT ep_offset state). Restores env + RNG + dual in place, loads this
+#   run's frozen checkpoints, runs a frozen tail at --seamless_noise. Writes *_seamless_n{NN}.mat
+#   so multiple sigma never clobber. No training (IS_TRAIN forced 0 above).
+if args.seamless_resume:
+    if args.seamless_tail <= 0:
+        raise SystemExit('[seamless-resume] also pass --seamless_tail N (>0) to run the tail')
+    print('=== [RQ1-CMDP] seamless-resume from %s (sigma=%.2g, tail=%d) ==='
+          % (args.seamless_resume, args.seamless_noise, args.seamless_tail))
+    with open(args.seamless_resume, 'rb') as f:
+        recon = pickle.load(f)
+    env.__dict__.update(recon['env'].__dict__)          # restore full env state in place
+    random.setstate(recon['rng_random'])
+    np.random.set_state(recon['rng_numpy'])
+    T.set_rng_state(recon['rng_torch'])
+    if recon.get('rng_torch_cuda') is not None and T.cuda.is_available():
+        T.cuda.set_rng_state_all(recon['rng_torch_cuda'])
+    for i in range(n_platoon):
+        agents[i].load_models()
+    for j in range(n_platoon):
+        agents[j].lam = float(recon['lam_per_platoon'][j])
+    run_dir = os.path.join(current_dir, "model", label)
+    os.makedirs(run_dir, exist_ok=True)
+    sfx = '_n%d' % round(args.seamless_noise * 100)
+    aoi_tail, pow_tail = run_seamless_tail(args.seamless_tail, int(recon['ep_offset']), args.seamless_noise)
+    write_seamless_outputs(run_dir, sfx, aoi_tail, pow_tail)
 
 if writer is not None:
     writer.close()

@@ -14,6 +14,7 @@ folder with `--out_subdir` (see ARCHITECTURE.md §4).
 | `Feasibility_ep1000/` | seed2 1000-ep | `soft/hard_seed2_*_ep1000` | 2 | `Canonical_ep600` | `results_remote/RQ1_SEED2_INFEAS_REPORT.md` | 5 |
 | `ScenarioSweep/` | resource frontier | `*_rb{2,3,4}_pl{4,5,6}` (4 arms) | 2–4 | self-contained (each cell carries its own soft / pid / glmax / qind) | `ScenarioSweep/RQ1_SCENARIO_SWEEP.md` | 8 |
 | `ep600_deploy/` | frozen-deployment eval | `soft_*_base_ep600_deploy`, `hard_*_t8e10_pid_ep600_deploy` (+ `*_test*` / `_test_warm*` / `_n*`) | 2–7 | training-time `.mat` in the same dir | `results_remote/RQ1_DEPLOY_EVAL_{AB,WARM,NOISE}.md` | deployment phase |
+| `Deploy_seamless_800ep/` | SEAMLESS deployment (train 600 == canonical, then frozen 200-ep tail on the SAME env, σ=0.3, AoI not reset) | `soft_*_base_seamless800`, `hard_*_t8e10_pid_seamless800` (+ `*_seamless*.mat`, `Scenario_Reconstruct.pkl`) | 2–7 | this run's training `.mat` + `Canonical_ep600` (acceptance gate) | `results_remote/RQ1_DEPLOY_SEAMLESS.md` | removes the --eval_only geometry-restart + AoI-reset confounds; cause-discrimination (under-training vs online-dual). Flags: `--seamless_tail/--seamless_noise/--seamless_resume` |
 | `Legacy_300ep/` | retired 300-ep | τ/ε phase (non-(8,10) cells), σ-anneal, floor; + `claim4_support/` (300-ep headline + claim-4 `t8e10`±pid, n=10, + soft baseline) | 2–11 | — | inside `Legacy_300ep/` | claim 4 (in `claim4_support/`); the rest retired |
 
 Notes
