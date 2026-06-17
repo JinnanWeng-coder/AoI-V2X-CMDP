@@ -1,9 +1,11 @@
 # CLAUDE.md — RQ1 per-platoon hard-constraint experiment (read this first)
 
 > ## RQ1 STATUS (2026-06-17) — training-level campaign COMPLETE (findings 1–8 settled);
-> ## frozen-DEPLOYMENT evaluation RESOLVED (negative, deeper finding): the per-platoon CMDP
-> ## guarantee is ONLINE-only — frozen deployment loses it and re-injecting the certified
-> ## σ=0.3 noise does NOT recover it (0/192 configs ≤ε). Claims 1–3 are training-level. §5
+> ## frozen-DEPLOYMENT evaluation UNDER INVESTIGATION: worst-platoon protection DEGRADES when
+> ## the policy is frozen — modestly for 4/6 seeds (net-mean ≈ ε), catastrophically for 2/6
+> ## (s2, s5; s2 is the under-trained seed), via a marginal platoon tipping over; re-injecting
+> ## the certified σ=0.3 noise does NOT fix it. CAUSE NOT YET DISCRIMINATED (under-training vs
+> ## online-dual dependence). Claims 1–3 remain training-level pending that. §5
 >
 > Terminology: **platoon = a convoy of vehicles (1 leader + followers); NOT a
 > software "platform".** Throughout, "per-platoon" means per-convoy.
@@ -73,28 +75,30 @@
 > 21.5→10.7; most dramatic seed2 convoy: 12.6→3.3, per-step peak 83→25. The diluted
 > network-mean (5.4→4.4, −19%) under-sells the same result.
 >
-> **DEPLOYMENT EVALUATION (`ep600_deploy/`) — RESOLVED (negative; the deeper finding):**
+> **DEPLOYMENT EVALUATION (`ep600_deploy/`) — UNDER INVESTIGATION (σ-eval done; cause open):**
 > claims 1–3 are TRAINING-level (recorded with exploration noise σ=0.3 while weights+λ still
 > update). Frozen-deployment tests: (i) COLD synchronized boot (AoI=100; plain `*_test*.mat`)
 > deadlocks the greedy deterministic policy — a boot-protocol artifact (the same convoys
 > train at AoI≈4), kept as a documented caveat. (ii) WARM start (`*_test_warm*.mat`)
-> removes the deadlock, BUT the frozen DETERMINISTIC policy loses the guarantee: pid worst
-> 0.362±0.234 ≈ soft 0.379±0.185 (pairwise pid better only 4/6), NO run ≤ε; held-out is
+> removes the deadlock, BUT the frozen DETERMINISTIC policy loses the worst-platoon guarantee:
+> pid worst 0.362±0.234 ≈ soft 0.379±0.185 (pairwise pid better only 4/6), NO run ≤ε; held-out
 > worse (0.65–0.70). Mechanism hypothesis: the CMDP certified the STOCHASTIC behaviour policy
 > μ+N(0,0.3) — exploration noise performs implicit coordination (RB symmetry-breaking);
-> noise-off deploys a different, uncertified policy. (iii) DECISIVE σ-eval (RESOLVED):
-> redeploy the certified STOCHASTIC policy μ+N(0,σ), σ∈{0,0.05,0.1,0.3}, eval-only WARM on
-> the 12 checkpoints — re-injecting the certification noise does **NOT** recover the
-> guarantee. Pooled eval-A worst: pid 0.362→0.348 across σ, ≈ soft 0.379→0.327; the training
-> protection gap soft−pid **+0.228 collapses to +0.016 (σ=0) and −0.022 (σ=0.3)**; **0/192**
-> (arm×seed×σ×eval-set) configs reach ≤ε (best anywhere 0.135); held-out worse/noisier. Every
-> number locally re-verified from raw `.mat` (`results_remote/RQ1_DEPLOY_EVAL_NOISE.md`;
-> verifier + σ-sweep fig in `tmp_scripts/`). **Conclusion: the per-platoon CMDP guarantee is
-> a property of CONTINUOUS ONLINE DUAL ADAPTATION during training, not of the frozen policy —
-> its scope is "online," not "deploy-and-forget." State claims 1–3 as training-level/online
-> only.** Open (scope only, NOT run): a LIGHT online dual at deployment (freeze policy, keep
-> λ_j updating) may restore feasibility cheaply → would convert the limitation into a positive
-> "online-dual deployment" contribution; needs a new remote training/eval batch.
+> noise-off deploys a different, uncertified policy. (iii) σ-eval (DONE, cause OPEN): redeploy
+> the certified STOCHASTIC policy μ+N(0,σ), σ∈{0,0.05,0.1,0.3}, eval-only WARM on the 12
+> checkpoints — re-injecting the certification noise does **NOT** recover the worst-platoon
+> guarantee (pooled eval-A pid 0.362→0.348 ≈ soft 0.379→0.327; gap soft−pid +0.228→−0.022;
+> 0/192 configs ≤ε). **BUT the failure is seed-heterogeneous and concentrated in 1–2 marginal
+> platoons, NOT a network collapse:** at σ=0.3, 4/6 pid seeds degrade only mildly (worst
+> 0.19–0.24, **net-mean ≈ ε**) while 2/6 blow up (s2 0.69, s5 0.56) and drag the pool; the
+> tipping platoon DIFFERS from the training-worst platoon (s2 pl4→pl0, s5 pl0→pl2), and **s2 is
+> the documented under-trained seed (finding 5)** — i.e. a partial regression toward the
+> claim-1 failure mode (mean fine, one platoon starved). **CAUSE NOT YET DISCRIMINATED:**
+> under-training/residual-robustness (→ retrain s2/s5 longer, cf. finding 5) vs a genuine
+> online-dual dependence (→ light online-dual at deployment). Until a discriminating run,
+> state claims 1–3 as training-level only; **do NOT claim "online-only."** All σ-eval numbers
+> locally re-verified from raw `.mat` (`results_remote/RQ1_DEPLOY_EVAL_NOISE.md`; verifier +
+> σ-sweep fig + per-seed breakdown in `tmp_scripts/`).
 >
 > **Reduced/retired claims:** "infeasibility frontier" (→ trainability frontier);
 > `--aoi_floor` safeguard (unneeded, harmful under PID); "PID beats integral on
@@ -169,7 +173,7 @@ by-name references in the table/claim-map below stay valid regardless of folder.
 | `hard_seedN_t8e10_pid_ep600_glmean`, `..._glmax` | 2–7 | **600 ep**, single global λ | ablation #3 (claim 6): per-platoon vs global multiplier |
 | `soft_seedN_qind_w{2,5,10,20}_ep600` | 2–7 | **600 ep**, fixed-weight 1{AoI>τ} penalty | ablation #4 (claim 7): fixed-weight penalty vs dual |
 | `ScenarioSweep/ *_rb{2,3,4}_pl{4,5,6}` (4 arms) | 2,3,4 | **600 ep**, varies n_RB/platoons | resource-frontier sweep (self-contained; scripts + report inside the folder) |
-| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval (A in-dist `*_test*`, B held-out `*_holdout_s{12,13,14}`) | deployment-level test of claims 1–3. COLD boot (plain `*_test*`) = deadlock artifact; WARM (`*_test_warm*`, eval-only from checkpoints) = deterministic policy LOSES the guarantee (pid 0.362 ≈ soft 0.379, no run ≤ε); σ-eval (`*_test_warm_n{5,10,30}*`, certified stochastic policy μ+N(0,σ)) does NOT recover it (gap +0.228→−0.022, 0/192 ≤ε) ⇒ guarantee is ONLINE-only — see header box |
+| `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval (A in-dist `*_test*`, B held-out `*_holdout_s{12,13,14}`) | deployment-level test of claims 1–3. COLD boot (plain `*_test*`) = deadlock artifact; WARM (`*_test_warm*`, eval-only from checkpoints) = deterministic policy LOSES the guarantee (pid 0.362 ≈ soft 0.379, no run ≤ε); σ-eval (`*_test_warm_n{5,10,30}*`, certified stochastic policy μ+N(0,σ)) does NOT recover it (gap +0.228→−0.022, 0/192 ≤ε) but failure is seed-heterogeneous / 1–2 marginal platoons (4/6 seeds net-mean≈ε; s2/s5 catastrophic) — cause (under-training vs online-dual) under investigation, see header box |
 
 **Which data backs which claim** (canonical = ep600 t8e10 three-arm, seeds 2–7):
 - Claim 1 (soft hides starvation): `soft_*_base_ep600`.
@@ -200,7 +204,7 @@ headline `RQ1_REMOTE_REPORT.md` under `claim4_support/`); the scenario-sweep rep
 | `RQ1_ABLATION4_FIXEDWEIGHT.md` | fixed-weight penalty (w 2/5/10/20), ep600 | claim 7: no fixed weight matches the dual (worst-case seed ≥0.25 vs 0.165) |
 | `RQ1_DEPLOY_EVAL_AB.md` | frozen DETERMINISTIC eval, COLD boot, 12 runs | the cold synchronized AoI=100 boot deadlocks the greedy policy (artifact: same convoys train at AoI≈4) |
 | `RQ1_DEPLOY_EVAL_WARM.md` | frozen DETERMINISTIC eval, WARM start (eval-only from checkpoints) | deadlock removed, but deterministic deployment loses the guarantee (pid 0.362±0.234 ≈ soft; no run ≤ε) → stochastic-policy σ-eval (below) |
-| `RQ1_DEPLOY_EVAL_NOISE.md` | frozen STOCHASTIC eval, WARM, σ∈{0,0.05,0.1,0.3} (eval-only, certified μ+N(0,σ)) | re-injecting the certification noise does NOT recover the guarantee (pid≈soft at every σ; gap +0.228→−0.022; 0/192 configs ≤ε; held-out worse) → guarantee is ONLINE-only (the deeper, honest negative) |
+| `RQ1_DEPLOY_EVAL_NOISE.md` | frozen STOCHASTIC eval, WARM, σ∈{0,0.05,0.1,0.3} (eval-only, certified μ+N(0,σ)) | re-injecting the certification noise does NOT recover the worst-platoon guarantee (pid≈soft at every σ; gap +0.228→−0.022; 0/192 configs ≤ε) — but failure is seed-heterogeneous / 1–2 marginal platoons (4/6 seeds net-mean≈ε; s2/s5 catastrophic, s2 under-trained); cause (under-training vs online-dual) UNDER INVESTIGATION |
 
 **Retired to `model/Legacy_300ep/`** (with their figs + scripts): `RQ1_STABILITY_REPORT.md`
 (σ-anneal — rejected), `RQ1_PHASE_PID_REPORT.md` (τ/ε phase — superseded by
@@ -254,15 +258,18 @@ the whole point. Honest negative findings (a claim weaker than stated) must be r
 
 ## 5. Next steps (priority order)
 
-1. **DONE (decisive; negative) — stochastic-policy deployment eval.** Eval-noise option added
+1. **σ-eval DONE, CAUSE OPEN — stochastic-policy deployment eval.** Eval-noise option added
    (`--eval_noise σ`, commit `9de5ab1`); eval-only σ∈{0,0.05,0.1,0.3} re-run of the 12
    `ep600_deploy` policies (`353cbbf`), locally re-verified from raw `.mat`. Re-injecting the
-   certified σ=0.3 noise does NOT recover the guarantee (pid worst ≈ soft at every σ; gap
-   +0.228→−0.022; 0/192 configs ≤ε) ⇒ the certificate needs ONLINE adaptation; claims 1–3 are
-   training-level/online only. **Next natural test (scope only, not run): LIGHT online-dual
-   deployment** — freeze the policy but keep λ_j updating at deployment; if it restores
-   feasibility cheaply it converts this limitation into a positive "online-dual deployment"
-   contribution (needs a new remote training/eval batch).
+   certified σ=0.3 noise does NOT recover the worst-platoon guarantee (gap +0.228→−0.022;
+   0/192 configs ≤ε), BUT the failure is seed-heterogeneous: 4/6 pid seeds degrade only
+   mildly (worst 0.19–0.24, net-mean ≈ ε), only s2/s5 are catastrophic (on a shifting marginal
+   platoon; s2 is the under-trained seed). **Discriminate the cause before any claim change:**
+   (a) retrain s2/s5 longer (ep1000, cf. finding 5) + re-eval → tests under-training; (b) LIGHT
+   online-dual at deployment (freeze policy, keep λ_j updating) → if it cheaply recovers the
+   marginal platoons, this becomes a positive "online-dual deployment" contribution. Both need
+   a remote batch; first deepen the local `.mat` analysis (AoI traces of the tipping platoons,
+   end-of-training λ_j trajectories).
 2. **claim-4 600-ep support** (planned retrain of the 300-ep integral-vs-PID comparison,
    currently archived in `Legacy_300ep/claim4_support/`). Any retrain now auto-produces
    the new `critic_loss_cost.mat`/`cost_force.mat` diagnostics (the cost-critic convergence
