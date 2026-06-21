@@ -28,6 +28,13 @@ except ImportError:
 # ===================================================================== #
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', choices=['soft', 'hard'], default='soft')
+# [RQ1-CMDP A1] cost-critic necessity ablation. In HARD mode, the constraint signal that enters
+# the ACTOR objective is either: 'critic' (ours) = lambda_j * learned cost critic Q^c(s,pi(s));
+# or 'raw' (RCPO-style) = fold -lambda_j*cost into the task-2 reward target and DROP the separate
+# Q^c from the actor loss. The per-episode dual update of lambda_j is unchanged either way.
+# Default 'critic' = byte-identical to the established runs.
+parser.add_argument('--cost_source', choices=['critic', 'raw'], default='critic',
+                    help='[RQ1-CMDP A1] hard-mode constraint signal: critic (learned Q^c, ours) vs raw (RCPO reward-folded)')
 parser.add_argument('--episodes', type=int, default=500)
 parser.add_argument('--seed', type=int, default=2)
 parser.add_argument('--tau', type=float, default=8.0, help='AoI threshold (slots)')
@@ -309,6 +316,7 @@ for index_agent in range(n_platoon):
     agent = Agent(alpha, beta, n_input, tau, n_output, gamma, l_c1_dims, l_c2_dims,
                   A_fc1_dims, A_fc2_dims, batch_size, n_platoon, index_agent, noise)
     agent.constraint_mode = CONSTRAINT_MODE     # [RQ1-CMDP]
+    agent.cost_source = args.cost_source        # [RQ1-CMDP A1] 'critic' (ours) vs 'raw' (RCPO)
     agent.lam = 0.0                             # per-platoon multiplier lambda_j
     agents.append(agent)
 memory = ReplayBuffer(memory_size, n_input, n_output, n_platoon)

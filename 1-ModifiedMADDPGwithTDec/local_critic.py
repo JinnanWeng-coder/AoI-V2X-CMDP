@@ -20,6 +20,7 @@ class Agent():
 
         # [RQ1-CMDP] constraint bookkeeping (set from Main.py)
         self.constraint_mode = 'soft'   # 'soft' (reward penalty) or 'hard' (CMDP)
+        self.cost_source = 'critic'     # [RQ1-CMDP A1] 'critic' (learned Q^c, ours) or 'raw' (RCPO reward-folded)
         self.lam = 0.0                  # per-platoon Lagrange multiplier lambda_j
         # [RQ1-CMDP] per-episode training diagnostics (reset + read by Main.py):
         #   diag_closs_sum/diag_n  -> Bellman MSE of the cost critic (is Q^c converging?)
@@ -127,7 +128,13 @@ class Agent():
         critic_value_task2_[done] = 0.0
         critic_value_task2_ = critic_value_task2_.view(-1)
 
-        target_task2 = rewards_t2 + self.gamma*critic_value_task2_
+        # [RQ1-CMDP A1] raw/RCPO arm folds the constraint penalty into the task-2 reward target
+        # (using the LIVE lambda_j); the 'critic' arm leaves task-2 untouched and instead prices the
+        # constraint off the separate cost critic in the actor loss below.
+        rt2 = rewards_t2
+        if self.constraint_mode == 'hard' and self.cost_source == 'raw':
+            rt2 = rewards_t2 - self.lam * rewards_cost
+        target_task2 = rt2 + self.gamma*critic_value_task2_
         target_task2 = target_task2.view(self.batch_size, 1)
 
         self.critic_task2.train()
@@ -158,11 +165,18 @@ class Agent():
                      - self.critic_task2.forward(states, self.actor.forward(states))
         actor_loss = T.mean(actor_loss)
         if self.constraint_mode == 'hard':
-            # CMDP primal step: minimise reward-loss + lambda_j * E[discounted cost].
-            # The global-critic term is dropped here (it is detached/zero-gradient
-            # under the original code anyway); AoI is handled by the constraint.
-            qc_pi = T.mean(self.critic_cost.forward(states, self.actor.forward(states)))
-            actor_loss = actor_loss + self.lam * qc_pi
+            if self.cost_source == 'raw':
+                # [RQ1-CMDP A1] RCPO-style: the penalty was folded into the task-2 target above;
+                # the separate cost critic Q^c is NOT used by the actor (computed no-grad below only
+                # for the cost_force / critic_loss_cost diagnostics).
+                with T.no_grad():
+                    qc_pi = T.mean(self.critic_cost.forward(states, self.actor.forward(states)))
+            else:
+                # ours: CMDP primal step minimises reward-loss + lambda_j * E[discounted cost],
+                # priced off the LEARNED cost critic Q^c. The global-critic term is dropped here
+                # (it is detached/zero-gradient under the original code anyway).
+                qc_pi = T.mean(self.critic_cost.forward(states, self.actor.forward(states)))
+                actor_loss = actor_loss + self.lam * qc_pi
         else:
             # original 'soft' behaviour (AoI enters as a reward penalty in task2);
             # the global-critic term is the original detached, zero-gradient add.
