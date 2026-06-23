@@ -101,7 +101,16 @@
 > **Reduced/retired claims:** "infeasibility frontier" (→ trainability frontier);
 > `--aoi_floor` safeguard (unneeded, harmful under PID); "PID beats integral on
 > #pass" (CI overlap at n=10 — PID's real win is sacrifice-count + limit-cycle
-> removal); the +62%/+74% cost numbers (superseded by PID/ep600).
+> removal); the +62%/+74% cost numbers (superseded by PID/ep600). **Cost critic (method
+> component c) DEMOTED** — A1 (`--cost_source raw`/RCPO) shows it is NOT necessary for
+> protection (RAW 0.120 ≈ CRITIC 0.126), only marginally steadier; novelty = per-platoon
+> formalization + worst-platoon result + necessity ablations (`RQ1_ABLATION_COSTSOURCE.md`).
+>
+> **In flight (2026-06-23):** claim-4 ep600 seed extension to n=10 (`Canonical_ep600/claim4_ext/`,
+> seeds 8–11 integral+PID) — ep600 n=6 already holds (A3: late-std 0.181→0.105); the extension
+> hardens the Wilcoxon (floor 0.031→0.002). And: ep1000 buffer test settled the ep500–600
+> cost-critic-loss drop as a FIFO eviction artifact, with ep600 the deployment sweet spot
+> (ep1000 over-trains 3/6 seeds) — `RQ1_DEPLOY_SEAMLESS1000.md`.
 >
 > **Companion docs (read as needed):**
 > - **method + code architecture** → [`ARCHITECTURE.md`](ARCHITECTURE.md)
@@ -162,7 +171,7 @@ by-name references in the table/claim-map below stay valid regardless of folder.
 | run-class (tag) | seeds | conditions | what it tests |
 |---|---|---|---|
 | `Legacy_300ep/claim4_support/ soft_seedN_base` | 2–11 | 300 ep, soft baseline | the 300ep headline / n=10 CI baseline (paired with the t8e10 runs there). **300ep — archived**; the LIVE baseline is `soft_*_base_ep600` |
-| `Legacy_300ep/claim4_support/ hard_seedN_t8e10`, `_t8e10_pid` | 2–11 | 300 ep, integral vs PID | claim-4 limit-cycle data + n=10 CI headline. **300ep — archived; a 600ep support is planned** |
+| `Legacy_300ep/claim4_support/ hard_seedN_t8e10`, `_t8e10_pid` | 2–11 | 300 ep, integral vs PID | claim-4 limit-cycle data + n=10 CI headline. **300ep — archived**; the LIVE ep600 support is the canonical integral/PID arms (n=6, A3) + `Canonical_ep600/claim4_ext/` seeds 8–11 (n=10, RUNNING) |
 | `Legacy_300ep/ hard_seedN_t{10,12}e{10,15}(_pid)`, `_t8e15(_pid)` | 2–7 (t10/12e10 also 8–11) | 300 ep | **RETIRED** τ/ε phase grid, non-(8,10) cells (superseded by `ScenarioSweep/`). The (8,10) cell = the `t8e10` rows above, kept in root (claim-4/headline). |
 | `Legacy_300ep/ hard_seedN_t8e10_anneal` | 2–7 | 300 ep, σ-anneal | **RETIRED** stability ablation (σ-anneal — rejected) |
 | `Legacy_300ep/ hard_seedN_t8e10(_pid)_floor` | 2,3,4 | 300 ep, +floor | **RETIRED** feasibility safeguard (back-fires under PID) |
@@ -170,24 +179,35 @@ by-name references in the table/claim-map below stay valid regardless of folder.
 | `soft/hard_seed2_..._ep1000` | 2 | **1000 ep** | seed2-pl2 infeasibility test (claim 5: under-trained, not infeasible) |
 | `hard_seedN_t8e10_pid_ep600_glmean`, `..._glmax` | 2–7 | **600 ep**, single global λ | ablation #3 (claim 6): per-platoon vs global multiplier |
 | `soft_seedN_qind_w{2,5,10,20}_ep600` | 2–7 | **600 ep**, fixed-weight 1{AoI>τ} penalty | ablation #4 (claim 7): fixed-weight penalty vs dual |
+| `Ablations_ep600/cost_source/ hard_seedN_t8e10_pid_ep600_rawcost` | 2–7 | **600 ep**, `--cost_source raw` (RCPO-style: −λ·cost folded into task-2 reward, NO separate Q^c) | **A1** (method component c): is the SEPARATE learned cost critic necessary? Compare vs the canonical PID arm (== `--cost_source critic`) |
+| `Canonical_ep600/claim4_ext/ hard_seedN_t8e10_ep600`, `..._pid_ep600` | **8–11** | **600 ep**, integral & PID | claim-4 ep600 seed extension → pools with seeds 2–7 for **n=10** (Wilcoxon floor 0.031→0.002). **RUNNING** (launched 2026-06-23, `claim4_ep600_driver.ps1`) |
 | `ScenarioSweep/ *_rb{2,3,4}_pl{4,5,6}` (4 arms) | 2,3,4 | **600 ep**, varies n_RB/platoons | resource-frontier sweep (self-contained; scripts + report inside the folder) |
 | `ep600_deploy/ soft_seedN_base_ep600_deploy`, `hard_seedN_t8e10_pid_ep600_deploy` | 2–7 | 600 ep retrain (bitwise == canonical) + frozen-deployment eval (A in-dist `*_test*`, B held-out `*_holdout_s{12,13,14}`) | deployment-level test of claims 1–3. COLD boot (plain `*_test*`) = deadlock artifact; WARM (`*_test_warm*`, eval-only from checkpoints) = deterministic policy LOSES the guarantee (pid 0.362 ≈ soft 0.379, no run ≤ε); σ-eval (`*_test_warm_n{5,10,30}*`) also doesn't recover it (gap −0.022) — **but this is an eval-protocol artifact: `--eval_only` restarts from the seed's INITIAL geometry (Main.py ~L668).** The SEAMLESS re-run (`Deploy_seamless_800ep/`, certified geometry) shows protection SURVIVES: gap soft−pid +0.237 ≈ training +0.228 (pid worst 0.198, residual +0.072 over training). See header box + `Deploy_seamless_800ep/` row in `model/MANIFEST.md` |
 
 **Which data backs which claim** (canonical = ep600 t8e10 three-arm, seeds 2–7):
 - Claim 1 (soft hides starvation): `soft_*_base_ep600`.
 - Claim 2 (protection) / Claim 3 (cost): `soft_*_base_ep600` vs `hard_*_t8e10_pid_ep600`.
-- Claim 4 (PID vs limit-cycle): `Legacy_300ep/claim4_support/hard_*_t8e10` (integral) vs `..._t8e10_pid`, **300 ep** (archived; 600ep support planned).
+- Claim 4 (PID vs limit-cycle): `Legacy_300ep/claim4_support/hard_*_t8e10` (integral) vs
+  `..._t8e10_pid`, **300 ep, n=10** (archived). ep600 support: A3 gives **n=6** (most-oscillating
+  platoon late-std integral 0.181 → PID 0.105); `Canonical_ep600/claim4_ext/` (seeds 8–11)
+  extends ep600 to **n=10** (RUNNING).
 - Claim 5 (no true infeasibility): the three `*_ep1000` seed2 runs (+ ep600 context).
 - Claim 6 (per-platoon necessity): `hard_*_t8e10_pid_ep600` vs `..._glmean`/`..._glmax`,
   with `soft_*_base_ep600` for context.
 - Claim 7 (fixed-weight ≠ dual): `soft_*_qind_w{2,5,10,20}_ep600` vs
   `hard_*_t8e10_pid_ep600`, with `soft_*_base_ep600` for context.
+- A1 (cost-critic necessity; method component c, NOT a numbered claim):
+  `hard_*_t8e10_pid_ep600` (CRITIC = ours) vs `Ablations_ep600/cost_source/..._rawcost`
+  (RAW = RCPO). Verdict: the separate learned cost critic is **NOT necessary for protection**
+  (RAW worst 0.120 ≈ CRITIC 0.126); its only edge is lower oscillation (5/6 seeds, not
+  significant at n=6) → **demote (c)** to an implementation/stability detail, not a core
+  contribution. See `RQ1_ABLATION_COSTSOURCE.md`.
 
 ---
 
 ## 3. `results_remote/` — what each report proves
 
-Six live reports in `results_remote/` (table below), each auto-generated by a detached
+Ten live reports in `results_remote/` (table below), each auto-generated by a detached
 driver then committed; all numbers cross-checked against raw `.mat`. (Chronological batch
 logs — early rows may report numbers later superseded; trust the findings box above + the
 Manuscript canon.) Retired process reports moved to `model/Legacy_300ep/` (incl. the 300ep
@@ -200,18 +220,20 @@ headline `RQ1_REMOTE_REPORT.md` under `claim4_support/`); the scenario-sweep rep
 | `RQ1_SEED2_INFEAS_REPORT.md` | seed2 1000-ep | seed2-pl2 under-trained NOT infeasible → no true-infeasible platoon |
 | `RQ1_ABLATION3_GLOBAL_LAMBDA.md` | per-platoon vs global λ, 6 seeds, ep600 | claim 6: a single global multiplier fails; per-platoon is necessary |
 | `RQ1_ABLATION4_FIXEDWEIGHT.md` | fixed-weight penalty (w 2/5/10/20), ep600 | claim 7: no fixed weight matches the dual (worst-case seed ≥0.25 vs 0.165) |
+| `RQ1_ABLATION_COSTSOURCE.md` | A1: cost-critic necessity (`--cost_source raw`, RCPO-style), 6 seeds, ep600 | the SEPARATE learned cost critic is NOT necessary for protection (RAW worst 0.120 ≈ CRITIC 0.126); CRITIC's only edge is lower oscillation (5/6 seeds, n=6 not significant) → demote method component (c) |
 | `RQ1_DEPLOY_EVAL_AB.md` | frozen DETERMINISTIC eval, COLD boot, 12 runs | the cold synchronized AoI=100 boot deadlocks the greedy policy (artifact: same convoys train at AoI≈4) |
 | `RQ1_DEPLOY_EVAL_WARM.md` | frozen DETERMINISTIC eval, WARM start (eval-only from checkpoints) | deadlock removed, but deterministic deployment loses the guarantee (pid 0.362±0.234 ≈ soft; no run ≤ε) → stochastic-policy σ-eval (below) |
 | `RQ1_DEPLOY_EVAL_NOISE.md` | frozen STOCHASTIC eval, WARM, σ∈{0,0.05,0.1,0.3} (eval-only, certified μ+N(0,σ)) | σ-sweep does not recover the apparent loss (gap −0.022; 0/192 ≤ε) — later shown to be a geometry-restart artifact (see SEAMLESS row) |
 | `RQ1_DEPLOY_SEAMLESS.md` | frozen SEAMLESS deployment (`Deploy_seamless_800ep/`: train 600 == canonical, then frozen 200-ep tail on the SAME env, σ=0.3, AoI not reset) | **the resolution:** on the CERTIFIED geometry the per-platoon protection SURVIVES — soft 0.435 vs pid 0.198, **gap +0.237 ≈ training +0.228**; the eval_only "loss" was the geometry-restart artifact. Residual: pid 0.126→0.198 (>ε); in-trajectory, not cross-scenario. Acceptance gate: first-600 == Canonical_ep600 (bit-exact). raw-`.mat` verified |
+| `RQ1_DEPLOY_SEAMLESS1000.md` | frozen SEAMLESS ep1000 (`Deploy_seamless_1200ep/`: train **1000** + frozen 200-ep tail, σ=0.3; `memory_size`=50000 unchanged) | idea-1 buffer test: the ep500–600 cost-critic-loss drop is a **FIFO buffer-eviction artifact** (50k buffer fills at ep500; loss keeps dropping then plateaus while `reward_cost`/violation stays at ε — genuine convergence is the ep150–450 window, not the eviction drop). **Side finding:** ep600 is the deployment sweet spot — ep1000 over-trains (3/6 seeds worse; pooled worst 0.198→0.276) ⇒ a dual-sided training boundary |
 
 **Retired to `model/Legacy_300ep/`** (with their figs + scripts): `RQ1_STABILITY_REPORT.md`
 (σ-anneal — rejected), `RQ1_PHASE_PID_REPORT.md` (τ/ε phase — superseded by
 `ScenarioSweep/`), `RQ1_FLOOR_AND_CI_REPORT.md` (floor — retired); plus
 `fig_phase_diagram(_pid).png`, `fig_stability_*.png`, `fig_(pid_)floor.png`. The 300ep
 claim-4 / headline data (t8e10±pid n=10, `RQ1_REMOTE_REPORT.md`, fig_headline_violation /
-lambda / cost_tradeoff / softsweep) is under `model/Legacy_300ep/claim4_support/` — a 600ep
-support is planned.
+lambda / cost_tradeoff / softsweep) is under `model/Legacy_300ep/claim4_support/` — the ep600
+support is now live (A3 n=6 + `Canonical_ep600/claim4_ext/` n=10, see §2).
 
 Per-batch figures (`results_remote/fig_*.png`) are batch-specific; the five
 manuscript-grade claim figures live in `../Manuscript/figures/` (`fig_claim1..5`).
@@ -239,7 +261,10 @@ value per platoon (τ=8). Network-mean = mean over 5 platoons; worst = max over 
   → `fig_claim3_cost.png`.
 - **Claim 4** — **300-ep** `Legacy_300ep/claim4_support/hard_*_t8e10` vs `..._t8e10_pid`:
   worst platoon's per-episode `viol_rate.mat` last-100-ep std ≈ 0.175 (integral) → 0.097
-  (PID), concentrated on s3,s7. → `fig_claim4_pid_stability.png` (300ep; 600ep support planned).
+  (PID), concentrated on s3,s7. → `fig_claim4_pid_stability.png`. **ep600 support** (the metric
+  the paper reports): the MOST-OSCILLATING platoon's last-100-ep std, integral **0.181 → PID
+  0.105** at n=6 (A3, `../Manuscript/data/A3A4_stats.md` → `fig_claim4_ep600.png`); the
+  `Canonical_ep600/claim4_ext/` seed extension (8–11) lifts this to n=10 (`RQ1_CLAIM4_EP600.md`).
 - **Claim 6** — `hard_*_t8e10_pid_ep600` vs `..._glmean`/`..._glmax`: worst =
   `viol_rate.mat[:,-100:].mean(axis=1).max()`, power = `power.mat.mean()`. Expect
   per-platoon worst ≈0.126±0.024 vs both global ≈0.33; global_max power ≈18.9 vs ≈9.9 dBm.
@@ -272,10 +297,18 @@ the whole point. Honest negative findings (a claim weaker than stated) must be r
    generalization (held-out B not run). **No further deployment runs planned.** Optional only
    (the `Scenario_Reconstruct.pkl` enables both cheaply via `--seamless_resume`, no retrain):
    a σ-sweep on the certified geometry, or a light online-dual to close the residual +0.072.
-2. **claim-4 600-ep support** (planned retrain of the 300-ep integral-vs-PID comparison,
-   currently archived in `Legacy_300ep/claim4_support/`). Any retrain now auto-produces
-   the new `critic_loss_cost.mat`/`cost_force.mat` diagnostics (the cost-critic convergence
-   curve rides along for free).
+2. **claim-4 ep600 support — IN PROGRESS.** n=6 is already done (A3: most-oscillating-platoon
+   late-std integral 0.181 → PID 0.105, from the canonical integral/PID arms). The
+   `claim4_ep600_driver.ps1` seed extension (seeds 8–11, integral+PID → `Canonical_ep600/claim4_ext/`)
+   is RUNNING to lift ep600 to **n=10** (Wilcoxon floor 0.031→0.002, matching the archived 300-ep
+   evidence). On completion: `RQ1_CLAIM4_EP600.md`, then regenerate `fig_claim4_ep600.png` locally
+   (`tmp_scripts/analyze_a3a4.py`, SEEDS=2..11). Any retrain auto-produces the
+   `critic_loss_cost.mat`/`cost_force.mat` cost-critic-convergence diagnostics for free.
+   - **A1 (cost-critic necessity) — DONE.** `--cost_source raw` (RCPO) ≈ `critic` (ours) on
+     protection (RAW worst 0.120 ≈ CRITIC 0.126); CRITIC's only edge is lower oscillation (5/6
+     seeds, not significant at n=6). ⇒ **demote method component (c)** from a contribution to an
+     implementation/stability detail; center novelty on the per-platoon formalization +
+     worst-platoon result + necessity ablations. (`RQ1_ABLATION_COSTSOURCE.md`.)
 3. **Scenario-sweep firm-up** (optional): more seeds in the binding band (load 1.5–2.5)
    and/or seed2 at ep1000, to harden finding 8 beyond n=3 and quantify the divergence rate.
 4. **Real 3GPP PRR as a second cost head** (delivery proxy → true multi-constraint CMDP) —
