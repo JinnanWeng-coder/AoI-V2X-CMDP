@@ -9,6 +9,7 @@ folder with `--out_subdir` (see ARCHITECTURE.md §4).
 | folder | study | arms (run-name tag) | seeds | compare against | report | finding |
 |---|---|---|---|---|---|---|
 | `Canonical_ep600/` | 3-arm reference (ep600) | `soft_*_base_ep600`, `hard_*_t8e10_ep600` (integral), `hard_*_t8e10_pid_ep600` (PID) | 2–7 | **self — the comparison anchor** | `results_remote/RQ1_EP600_REPORT.md` | findings 1–3 |
+| `Canonical_ep600/claim4_ext/` | claim-4 seed extension (integral+PID @ep600) | `hard_*_t8e10_ep600` (integral), `hard_*_t8e10_pid_ep600` (PID) | **8–11** | the seeds 2–7 in `../` (combined n=10) | `results_remote/RQ1_CLAIM4_EP600.md` | claim 4 @ep600 to n=10 (lifts Wilcoxon floor 0.031→0.002, retires the 300-ep-archived hedge). Driver `claim4_ep600_driver.ps1`; run-dir names are canonical so the resolver pools them with 2–7 |
 | `Ablations_ep600/global_lambda/` | #3 per-platoon vs global λ | `hard_*_t8e10_pid_ep600_glmean` / `_glmax` | 2–7 | `../../Canonical_ep600` (pid) | `results_remote/RQ1_ABLATION3_GLOBAL_LAMBDA.md` | 6 |
 | `Ablations_ep600/fixed_weight/` | #4 fixed-weight penalty | `soft_*_qind_w{2,5,10,20}_ep600` | 2–7 | `../../Canonical_ep600` | `results_remote/RQ1_ABLATION4_FIXEDWEIGHT.md` | 7 |
 | `Ablations_ep600/cost_source/` | A1 cost-critic necessity (`--cost_source raw`, RCPO-style: −λ·cost folded into task-2 reward, no separate Q^c) | `hard_*_t8e10_pid_ep600_rawcost` | 2–7 | `../../Canonical_ep600` PID (== `--cost_source critic`) | `results_remote/RQ1_ABLATION_COSTSOURCE.md` | A1 (defends method component c) |
